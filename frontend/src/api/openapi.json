@@ -9754,6 +9754,444 @@
     "title": "DesignResult",
     "type": "object"
    },
+   "DeskChatCreated": {
+    "properties": {
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "title",
+     "created_at"
+    ],
+    "title": "DeskChatCreated",
+    "type": "object"
+   },
+   "DeskChatIn": {
+    "properties": {
+     "title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Title"
+     }
+    },
+    "title": "DeskChatIn",
+    "type": "object"
+   },
+   "DeskChatListItem": {
+    "properties": {
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "turns": {
+      "title": "Turns",
+      "type": "integer"
+     },
+     "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "title",
+     "updated_at",
+     "turns"
+    ],
+    "title": "DeskChatListItem",
+    "type": "object"
+   },
+   "DeskChatOut": {
+    "properties": {
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "scope": {
+      "items": {
+       "$ref": "#/components/schemas/DeskScopeItem"
+      },
+      "title": "Scope",
+      "type": "array"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "turns": {
+      "items": {
+       "$ref": "#/components/schemas/DeskTurnSummary"
+      },
+      "title": "Turns",
+      "type": "array"
+     }
+    },
+    "required": [
+     "id",
+     "title",
+     "created_at",
+     "scope",
+     "turns"
+    ],
+    "title": "DeskChatOut",
+    "type": "object"
+   },
+   "DeskCompanies": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/DeskCompany"
+      },
+      "title": "Items",
+      "type": "array"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "total",
+     "items"
+    ],
+    "title": "DeskCompanies",
+    "type": "object"
+   },
+   "DeskCompany": {
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "reports": {
+      "title": "Reports",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "company_id",
+     "name",
+     "reports"
+    ],
+    "title": "DeskCompany",
+    "type": "object"
+   },
+   "DeskScopeIn": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/DeskScopeItemIn"
+      },
+      "title": "Items",
+      "type": "array"
+     }
+    },
+    "required": [
+     "items"
+    ],
+    "title": "DeskScopeIn",
+    "type": "object"
+   },
+   "DeskScopeItem": {
+    "properties": {
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "ref": {
+      "title": "Ref",
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind",
+     "ref",
+     "label"
+    ],
+    "title": "DeskScopeItem",
+    "type": "object"
+   },
+   "DeskScopeItemIn": {
+    "properties": {
+     "kind": {
+      "enum": [
+       "company",
+       "universe",
+       "run"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "ref": {
+      "title": "Ref",
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind",
+     "ref"
+    ],
+    "title": "DeskScopeItemIn",
+    "type": "object"
+   },
+   "DeskScopeOut": {
+    "properties": {
+     "scope": {
+      "items": {
+       "$ref": "#/components/schemas/DeskScopeItem"
+      },
+      "title": "Scope",
+      "type": "array"
+     }
+    },
+    "required": [
+     "scope"
+    ],
+    "title": "DeskScopeOut",
+    "type": "object"
+   },
+   "DeskStage": {
+    "properties": {
+     "detail": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Detail"
+     },
+     "ms": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ms"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name",
+     "status",
+     "ms",
+     "detail"
+    ],
+    "title": "DeskStage",
+    "type": "object"
+   },
+   "DeskTurnIn": {
+    "properties": {
+     "mode": {
+      "default": "quick",
+      "enum": [
+       "quick",
+       "thorough"
+      ],
+      "title": "Mode",
+      "type": "string"
+     },
+     "question": {
+      "title": "Question",
+      "type": "string"
+     }
+    },
+    "required": [
+     "question"
+    ],
+    "title": "DeskTurnIn",
+    "type": "object"
+   },
+   "DeskTurnOut": {
+    "properties": {
+     "answer": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Answer"
+     },
+     "chat_id": {
+      "title": "Chat Id",
+      "type": "integer"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "finished_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Finished At"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "mode": {
+      "title": "Mode",
+      "type": "string"
+     },
+     "question": {
+      "title": "Question",
+      "type": "string"
+     },
+     "sources": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Sources",
+      "type": "array"
+     },
+     "stages": {
+      "items": {
+       "$ref": "#/components/schemas/DeskStage"
+      },
+      "title": "Stages",
+      "type": "array"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "chat_id",
+     "question",
+     "mode",
+     "status",
+     "error",
+     "created_at",
+     "finished_at",
+     "stages",
+     "sources",
+     "answer"
+    ],
+    "title": "DeskTurnOut",
+    "type": "object"
+   },
+   "DeskTurnStarted": {
+    "properties": {
+     "turn_id": {
+      "title": "Turn Id",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "turn_id"
+    ],
+    "title": "DeskTurnStarted",
+    "type": "object"
+   },
+   "DeskTurnSummary": {
+    "properties": {
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "mode": {
+      "title": "Mode",
+      "type": "string"
+     },
+     "question": {
+      "title": "Question",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "question",
+     "mode",
+     "status",
+     "created_at"
+    ],
+    "title": "DeskTurnSummary",
+    "type": "object"
+   },
    "Dimension": {
     "description": "A group of criteria that measure the same underlying thing. The\nwhole point of grouping is that a dimension's weight is shared by its\nmembers, so three ways of saying the same thing don't earn three\ntimes the weight.",
     "properties": {
@@ -35150,6 +35588,313 @@
     "summary": "Match Templates",
     "tags": [
      "decision"
+    ]
+   }
+  },
+  "/api/desk/chats": {
+   "get": {
+    "operationId": "list_chats_api_desk_chats_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/DeskChatListItem"
+         },
+         "title": "Response List Chats Api Desk Chats Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Chats",
+    "tags": [
+     "desk"
+    ]
+   },
+   "post": {
+    "operationId": "create_chat_api_desk_chats_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DeskChatIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DeskChatCreated"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Create Chat",
+    "tags": [
+     "desk"
+    ]
+   }
+  },
+  "/api/desk/chats/{chat_id}": {
+   "get": {
+    "operationId": "get_chat_api_desk_chats__chat_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "chat_id",
+      "required": true,
+      "schema": {
+       "title": "Chat Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DeskChatOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Chat",
+    "tags": [
+     "desk"
+    ]
+   }
+  },
+  "/api/desk/chats/{chat_id}/scope": {
+   "put": {
+    "operationId": "put_scope_api_desk_chats__chat_id__scope_put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "chat_id",
+      "required": true,
+      "schema": {
+       "title": "Chat Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DeskScopeIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DeskScopeOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Put Scope",
+    "tags": [
+     "desk"
+    ]
+   }
+  },
+  "/api/desk/chats/{chat_id}/turns": {
+   "post": {
+    "operationId": "post_turn_api_desk_chats__chat_id__turns_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "chat_id",
+      "required": true,
+      "schema": {
+       "title": "Chat Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DeskTurnIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "202": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DeskTurnStarted"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Turn",
+    "tags": [
+     "desk"
+    ]
+   }
+  },
+  "/api/desk/companies": {
+   "get": {
+    "operationId": "list_companies_api_desk_companies_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "q",
+      "required": false,
+      "schema": {
+       "default": "",
+       "title": "Q",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 20,
+       "maximum": 100,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DeskCompanies"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Companies",
+    "tags": [
+     "desk"
+    ]
+   }
+  },
+  "/api/desk/turns/{turn_id}": {
+   "get": {
+    "operationId": "get_turn_api_desk_turns__turn_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "turn_id",
+      "required": true,
+      "schema": {
+       "title": "Turn Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DeskTurnOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Turn",
+    "tags": [
+     "desk"
     ]
    }
   },

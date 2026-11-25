@@ -1549,6 +1549,109 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/desk/chats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Chats */
+        get: operations["list_chats_api_desk_chats_get"];
+        put?: never;
+        /** Create Chat */
+        post: operations["create_chat_api_desk_chats_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/desk/chats/{chat_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Chat */
+        get: operations["get_chat_api_desk_chats__chat_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/desk/chats/{chat_id}/scope": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Scope */
+        put: operations["put_scope_api_desk_chats__chat_id__scope_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/desk/chats/{chat_id}/turns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Turn */
+        post: operations["post_turn_api_desk_chats__chat_id__turns_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/desk/companies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Companies */
+        get: operations["list_companies_api_desk_companies_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/desk/turns/{turn_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Turn */
+        get: operations["get_turn_api_desk_turns__turn_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/discovery/events": {
         parameters: {
             query?: never;
@@ -13326,6 +13429,175 @@ export interface components {
             /** Url */
             url?: string | null;
         };
+        /** DeskChatCreated */
+        DeskChatCreated: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: number;
+            /** Title */
+            title: string;
+        };
+        /** DeskChatIn */
+        DeskChatIn: {
+            /** Title */
+            title?: string | null;
+        };
+        /** DeskChatListItem */
+        DeskChatListItem: {
+            /** Id */
+            id: number;
+            /** Title */
+            title: string;
+            /** Turns */
+            turns: number;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** DeskChatOut */
+        DeskChatOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: number;
+            /** Scope */
+            scope: components["schemas"]["DeskScopeItem"][];
+            /** Title */
+            title: string;
+            /** Turns */
+            turns: components["schemas"]["DeskTurnSummary"][];
+        };
+        /** DeskCompanies */
+        DeskCompanies: {
+            /** Items */
+            items: components["schemas"]["DeskCompany"][];
+            /** Total */
+            total: number;
+        };
+        /** DeskCompany */
+        DeskCompany: {
+            /** Company Id */
+            company_id: string;
+            /** Name */
+            name: string;
+            /** Reports */
+            reports: number;
+        };
+        /** DeskScopeIn */
+        DeskScopeIn: {
+            /** Items */
+            items: components["schemas"]["DeskScopeItemIn"][];
+        };
+        /** DeskScopeItem */
+        DeskScopeItem: {
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
+            /** Ref */
+            ref: string;
+        };
+        /** DeskScopeItemIn */
+        DeskScopeItemIn: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "company" | "universe" | "run";
+            /** Ref */
+            ref: string;
+        };
+        /** DeskScopeOut */
+        DeskScopeOut: {
+            /** Scope */
+            scope: components["schemas"]["DeskScopeItem"][];
+        };
+        /** DeskStage */
+        DeskStage: {
+            /** Detail */
+            detail: {
+                [key: string]: unknown;
+            } | null;
+            /** Ms */
+            ms: number | null;
+            /** Name */
+            name: string;
+            /** Status */
+            status: string;
+        };
+        /** DeskTurnIn */
+        DeskTurnIn: {
+            /**
+             * Mode
+             * @default quick
+             * @enum {string}
+             */
+            mode: "quick" | "thorough";
+            /** Question */
+            question: string;
+        };
+        /** DeskTurnOut */
+        DeskTurnOut: {
+            /** Answer */
+            answer: {
+                [key: string]: unknown;
+            } | null;
+            /** Chat Id */
+            chat_id: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error */
+            error: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /** Id */
+            id: number;
+            /** Mode */
+            mode: string;
+            /** Question */
+            question: string;
+            /** Sources */
+            sources: {
+                [key: string]: unknown;
+            }[];
+            /** Stages */
+            stages: components["schemas"]["DeskStage"][];
+            /** Status */
+            status: string;
+        };
+        /** DeskTurnStarted */
+        DeskTurnStarted: {
+            /** Turn Id */
+            turn_id: number;
+        };
+        /** DeskTurnSummary */
+        DeskTurnSummary: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: number;
+            /** Mode */
+            mode: string;
+            /** Question */
+            question: string;
+            /** Status */
+            status: string;
+        };
         /**
          * Dimension
          * @description A group of criteria that measure the same underlying thing. The
@@ -24500,6 +24772,223 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TemplateMatch"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_chats_api_desk_chats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeskChatListItem"][];
+                };
+            };
+        };
+    };
+    create_chat_api_desk_chats_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeskChatIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeskChatCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_chat_api_desk_chats__chat_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chat_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeskChatOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_scope_api_desk_chats__chat_id__scope_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chat_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeskScopeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeskScopeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_turn_api_desk_chats__chat_id__turns_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chat_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeskTurnIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeskTurnStarted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_companies_api_desk_companies_get: {
+        parameters: {
+            query?: {
+                q?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeskCompanies"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_turn_api_desk_turns__turn_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                turn_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeskTurnOut"];
                 };
             };
             /** @description Validation Error */

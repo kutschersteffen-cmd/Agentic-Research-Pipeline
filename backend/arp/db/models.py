@@ -772,6 +772,54 @@ class RefineTurn(Base):
     undone_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class DeskChat(Base):
+    """A Research Desk chat, private to its owner (spec research-desk-wave1)."""
+
+    __tablename__ = "desk_chats"
+
+    id: Mapped[int] = _id()
+    owner_id: Mapped[str] = mapped_column(Text)
+    title: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = _ts()
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_NOW, server_default=_NOW)
+
+
+class DeskScope(Base):
+    """One item a chat asks about: a company key, a saved universe path or a run id."""
+
+    __tablename__ = "desk_scope"
+    __table_args__ = (UniqueConstraint("chat_id", "kind", "ref"),)
+
+    id: Mapped[int] = _id()
+    chat_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("desk_chats.id"))
+    kind: Mapped[str] = mapped_column(Text)  # company | universe | run
+    ref: Mapped[str] = mapped_column(Text)
+    label: Mapped[str] = mapped_column(Text)
+
+
+class DeskTurn(Base):
+    """One question in a Research Desk chat: its stages, sources and checked answer."""
+
+    __tablename__ = "desk_turns"
+    __table_args__ = (
+        Index("uq_desk_turns_running", "chat_id", unique=True, postgresql_where=text("status = 'running'")),
+    )
+
+    id: Mapped[int] = _id()
+    chat_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("desk_chats.id"))
+    user_id: Mapped[str] = mapped_column(Text)
+    question: Mapped[str] = mapped_column(Text)
+    mode: Mapped[str] = mapped_column(Text)  # quick | thorough
+    status: Mapped[str] = mapped_column(Text, default="running")  # running | done | failed
+    stages: Mapped[list] = mapped_column(JSONB, default=list)
+    sources: Mapped[list] = mapped_column(JSONB, default=list)
+    answer: Mapped[dict | None] = mapped_column(JSONB)
+    error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _ts()
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_NOW, server_default=_NOW)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 import arp.agent.models  # noqa: E402,F401  (registers the explorations table on Base)
 import arp.agent_board.models  # noqa: E402,F401  (registers the agent board tables on Base)
 import arp.authoritative.models  # noqa: E402,F401  (registers the authoritative layer tables on Base)
