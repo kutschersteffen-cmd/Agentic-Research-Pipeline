@@ -154,6 +154,23 @@ The system is precise and quiet. Cards are flat panels set off by a hairline; Ge
 - The start page leads with the five workspaces; everything else is reached from them.
 - The Orb, a gold hologram, stands for the agents; it is the only place where colour is spectacle.
 
+## Users and principles
+
+**Users.** Primary: a stewardship and ESG team at an asset manager, who run engagement, decide proxy votes and assess transition plans and barriers. The research functions (thematic universes, extraction, index construction, strategy replication) serve them and adjacent analysts, and are secondary.
+
+**Operating context.** ARP is often screen-shared in committees and client meetings, and used on phones, laptops, wide screens and projectors. Phone use is real: checking a run, a stalled issue or a pending vote away from the desk.
+
+**Principles.**
+1. Provenance over polish: a figure without its source is unfinished.
+2. Propose, never apply: automation suggests, a named person decides.
+3. Show the uncertainty: guesses, gaps and rank ranges are surfaced, never smoothed away.
+4. Legible in the room: the screen must read when shared, to people who did not drive it.
+5. Same truth at every size: a phone shows fewer things, never a different or less-sourced answer.
+
+**Terms to keep.** run, Needs you (the review queue), grounded / ungrounded citation, ratify, calibration, escalation stage, walk / talk, tier.
+
+**Evidence and accessibility.** No customers, testimonials, benchmarks or pricing exist; none may be invented. WCAG 2.1 AA is the working bar, plus projector and screen-share legibility.
+
 ## Colors
 
 An ink-on-black palette with one reserved signal and a small set of status colours.

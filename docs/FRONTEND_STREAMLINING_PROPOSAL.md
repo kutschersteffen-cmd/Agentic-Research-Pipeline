@@ -85,7 +85,7 @@ review-queue items, ballots to decide, stalled engagement issues, checkpoint
 overrides, tier changes to confirm. Each row shows its **process** and links to the
 exact item. Data already exists (`waitingCount`, `openCount`, `stageDecisions`); this
 is aggregation, not new backend. Phone-first: this is the "check a pending vote away
-from the desk" screen from `PRODUCT.md`.
+from the desk" screen from `DESIGN.md`.
 
 ### 4. Generalise the handoff (medium)
 
