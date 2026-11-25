@@ -86,7 +86,7 @@ services:
       # Sign-in users for local mode (README "Sign-in"): config/users.json,
       # created from config/users.example.json. Not needed in dev mode. The
       # whole directory is mounted so a missing users.json is not turned into
-      # an empty directory by Docker. Restart the backend after editing it.
+      # an empty directory by Docker. Edits take effect without a restart.
       - ./config:/app/config:ro
 
   frontend:

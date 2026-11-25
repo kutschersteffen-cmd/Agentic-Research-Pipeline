@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import logging
+import threading
 from collections.abc import Callable
-from functools import lru_cache
 from pathlib import Path
 from typing import Literal, get_args
 
@@ -19,6 +20,7 @@ LOOPBACK_HOSTS = {"127.0.0.1", "::1"}
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 Grant = Literal["snapshot_reader", "holdings_reader"]
 GRANTS: tuple[str, ...] = get_args(Grant)
+logger = logging.getLogger(__name__)
 
 
 class Principal(BaseModel):
@@ -32,9 +34,40 @@ class _UserRow(Principal):
     token: str = Field(min_length=1)
 
 
-@lru_cache
+_users_lock = threading.Lock()
+_last_good: dict[Path, tuple[tuple[int, int] | None, dict[str, Principal]]] = {}  # path -> (version, users) of the last valid read
+_logged: set[tuple[Path, tuple[int, int] | None]] = set()  # (path, version) whose failure was already logged
+
+
 def load_users(path: Path) -> dict[str, Principal]:
-    """token -> Principal. Raises RuntimeError naming the path when the file is missing or invalid."""
+    """token -> Principal, re-read when the file's (mtime, size) changes. A broken or missing file keeps the users
+    of the last valid read (logged once per version); with none, raises RuntimeError naming the path."""
+    try:
+        st = Path(path).stat()
+        version: tuple[int, int] | None = (st.st_mtime_ns, st.st_size)
+    except OSError:
+        version = None
+    with _users_lock:
+        last = _last_good.get(path)
+        if last is not None and last[0] == version:
+            return last[1]
+        try:
+            users = _read_users(path)
+        except NotConfigured as exc:
+            if last is None:
+                raise
+            if (path, version) not in _logged:
+                _logged.add((path, version))
+                logger.error("%s Still using the users from the last valid version.", exc)
+            return last[1]
+        _last_good[path] = (version, users)
+        return users
+
+
+load_users.cache_clear = lambda: (_last_good.clear(), _logged.clear())  # tests: forget every remembered version
+
+
+def _read_users(path: Path) -> dict[str, Principal]:
     try:
         rows = json.loads(Path(path).read_text(encoding="utf-8"))["users"]
         users = [_UserRow.model_validate(r) for r in rows]

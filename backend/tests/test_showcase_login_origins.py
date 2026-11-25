@@ -92,7 +92,9 @@ def test_guide_and_readme_warn_against_dev_with_any_origin():  # AC-12
                     "open in the same browser act as the dev approver.")
     readme = (REPO / "README.md").read_text()
     assert warning in plain(bank_section())
-    assert warning in plain(readme)
+    # spec signin-headers-containers: the README now says the API refuses this combination
+    assert plain('The API refuses to start with `ARP_AUTH_MODE=dev` and `"*"` in `ARP_ALLOWED_ORIGINS`: `"*"` would '
+                 "let any website open in the same browser act as the dev approver.") in plain(readme)
     assert "another website cannot" not in readme
 
 

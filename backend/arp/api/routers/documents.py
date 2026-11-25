@@ -116,12 +116,11 @@ def get_document_raw(
     for a PDF, that's what lets a `#page=N` URL fragment jump straight to
     the cited page."""
     path = _safe_document_path(settings.documents_dir, company_id, doc_type.value, filename)
-    media_type, _ = mimetypes.guess_type(path.name)
-    return FileResponse(
-        path,
-        media_type=media_type or "application/octet-stream",
-        headers={"Content-Disposition": f'inline; filename="{path.name}"'},
-    )
+    media_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+    headers = {"Content-Disposition": f'inline; filename="{path.name}"', "X-Content-Type-Options": "nosniff"}
+    if media_type != "application/pdf":
+        headers["Content-Security-Policy"] = "sandbox"  # a stored HTML or SVG file must not run script on our origin
+    return FileResponse(path, media_type=media_type, headers=headers)
 
 
 def _pdf_path(settings: Settings, company_id: str, doc_type: DocType, filename: str) -> Path:
