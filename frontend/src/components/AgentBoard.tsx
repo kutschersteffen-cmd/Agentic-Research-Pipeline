@@ -394,7 +394,7 @@ function BoardDiagram({ source, title, theme }: { source: string; title: string;
 
   useEffect(() => {
     const onMessage = (e: MessageEvent<FromFrame>) => {
-      if (!frame.current || e.source !== frame.current.contentWindow || e.origin !== location.origin) return;
+      if (!frame.current || e.source !== frame.current.contentWindow || e.origin !== "null") return;
       if (e.data?.type === "drawn" && typeof e.data.height === "number" && typeof e.data.width === "number") {
         setFailed(null);
         setSize({ width: e.data.width, height: e.data.height });
@@ -407,7 +407,7 @@ function BoardDiagram({ source, title, theme }: { source: string; title: string;
   useEffect(() => {
     if (!loaded || !theme) return;
     const msg: ToFrame = { type: "draw", source, theme, available: box.current?.clientWidth ?? 0 };
-    frame.current?.contentWindow?.postMessage(msg, location.origin);
+    frame.current?.contentWindow?.postMessage(msg, "*");
   }, [loaded, source, theme]);
   // A narrower or wider card lays the drawing out again, without drawing it again.
   useEffect(() => {
@@ -415,7 +415,7 @@ function BoardDiagram({ source, title, theme }: { source: string; title: string;
     if (!el || !loaded) return;
     const ro = new ResizeObserver(() => {
       const msg: ToFrame = { type: "fit", available: el.clientWidth };
-      frame.current?.contentWindow?.postMessage(msg, location.origin);
+      frame.current?.contentWindow?.postMessage(msg, "*");
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -429,7 +429,7 @@ function BoardDiagram({ source, title, theme }: { source: string; title: string;
           out but takes no room: Mermaid measures nothing in a frame hidden with display: none. */}
       <div ref={box} className="board-diagram-box" tabIndex={size && box.current && size.width > box.current.clientWidth ? 0 : undefined}
         role="region" aria-label={`Diagram: ${title}`}>
-        <iframe ref={frame} src={FRAME_SRC} sandbox="allow-scripts allow-same-origin" title={`Diagram: ${title}`}
+        <iframe ref={frame} src={FRAME_SRC} sandbox="allow-scripts" title={`Diagram: ${title}`}
           className={failed !== null ? "board-frame board-frame-failed" : "board-frame"} onLoad={() => setLoaded(true)}
           style={{ height: failed !== null ? 0 : size?.height ?? 64, width: size ? `max(100%, ${size.width}px)` : "100%" }} />
       </div>

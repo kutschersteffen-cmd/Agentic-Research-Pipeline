@@ -191,7 +191,7 @@ def test_diagrams_draw_in_a_sealed_frame(page):  # noqa: F811  AC-47, AC-49, AC-
     frames = page.locator("iframe.board-frame:not(.board-frame-failed)")
     assert frames.count() == 3
     for i in range(3):
-        assert frames.nth(i).get_attribute("sandbox") == "allow-scripts allow-same-origin"
+        assert frames.nth(i).get_attribute("sandbox") == "allow-scripts"
     by_path = [f for f in page.frames if f.url.endswith("board-diagram.html")]
     assert len(by_path) == 4
     drawn = {}
