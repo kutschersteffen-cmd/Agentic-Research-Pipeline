@@ -84,6 +84,8 @@ def field_entry(
     seconds: dict[str, float] | None = None,
     gate: dict | None = None,
     gate_dropped: list[dict] = (),
+    ranking: dict | None = None,
+    sub_seconds: dict[str, float] | None = None,
 ) -> dict:
     return {
         "field_id": field_id,
@@ -100,6 +102,8 @@ def field_entry(
         "seconds": {node: round(s, 2) for node, s in (seconds or {}).items()},
         "gate": gate,
         "gate_dropped": list(gate_dropped),
+        "ranking": ranking,  # every ranked candidate's ranks (explain's ranks/ranked_count/ranks_capped/pieces)
+        "sub_seconds": {step: round(s, 2) for step, s in (sub_seconds or {}).items()},  # inside a node's seconds
     }
 
 
