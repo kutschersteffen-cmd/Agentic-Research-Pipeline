@@ -19810,6 +19810,193 @@
     "title": "QuantityShockNode",
     "type": "object"
    },
+   "RadarCandidateRef": {
+    "properties": {
+     "run_id": {
+      "title": "Run Id",
+      "type": "string"
+     },
+     "theme_id": {
+      "title": "Theme Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "run_id",
+     "theme_id"
+    ],
+    "title": "RadarCandidateRef",
+    "type": "object"
+   },
+   "RadarHistoryEntry": {
+    "properties": {
+     "burst": {
+      "title": "Burst",
+      "type": "number"
+     },
+     "mention_count": {
+      "title": "Mention Count",
+      "type": "integer"
+     },
+     "period": {
+      "title": "Period",
+      "type": "string"
+     },
+     "share": {
+      "title": "Share",
+      "type": "number"
+     }
+    },
+    "required": [
+     "period",
+     "mention_count",
+     "share",
+     "burst"
+    ],
+    "title": "RadarHistoryEntry",
+    "type": "object"
+   },
+   "RadarResponse": {
+    "properties": {
+     "companies": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Companies",
+      "type": "array"
+     },
+     "periods": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Periods",
+      "type": "array"
+     },
+     "themes": {
+      "items": {
+       "$ref": "#/components/schemas/RadarTheme"
+      },
+      "title": "Themes",
+      "type": "array"
+     }
+    },
+    "required": [
+     "periods",
+     "themes"
+    ],
+    "title": "RadarResponse",
+    "type": "object"
+   },
+   "RadarTheme": {
+    "description": "One theme on the Theme Radar (spec theme-radar-screen); built by emerging_themes/radar.py::build_radar.",
+    "properties": {
+     "baseline_share": {
+      "title": "Baseline Share",
+      "type": "number"
+     },
+     "burst": {
+      "title": "Burst",
+      "type": "number"
+     },
+     "candidate": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/RadarCandidateRef"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "company_count": {
+      "title": "Company Count",
+      "type": "integer"
+     },
+     "first_period": {
+      "title": "First Period",
+      "type": "string"
+     },
+     "flag": {
+      "enum": [
+       "accelerating",
+       "rising",
+       "new",
+       "steady",
+       "cooling"
+      ],
+      "title": "Flag",
+      "type": "string"
+     },
+     "history": {
+      "items": {
+       "$ref": "#/components/schemas/RadarHistoryEntry"
+      },
+      "title": "History",
+      "type": "array"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "labels": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Labels",
+      "type": "array"
+     },
+     "last_period": {
+      "title": "Last Period",
+      "type": "string"
+     },
+     "radar_id": {
+      "title": "Radar Id",
+      "type": "string"
+     },
+     "share": {
+      "title": "Share",
+      "type": "number"
+     },
+     "source_mix": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "title": "Source Mix",
+      "type": "object"
+     },
+     "status": {
+      "enum": [
+       "none",
+       "candidate",
+       "under_review",
+       "promoted",
+       "rejected",
+       "disconfirmed"
+      ],
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "radar_id",
+     "label",
+     "flag",
+     "burst",
+     "share",
+     "baseline_share",
+     "first_period",
+     "last_period",
+     "status",
+     "candidate",
+     "source_mix",
+     "company_count",
+     "labels",
+     "history"
+    ],
+    "title": "RadarTheme",
+    "type": "object"
+   },
    "RankMove": {
     "properties": {
      "company": {
@@ -37627,6 +37814,28 @@
     "summary": "Edit Standards",
     "tags": [
      "dossiers"
+    ]
+   }
+  },
+  "/api/emerging-themes/radar": {
+   "get": {
+    "description": "Theme Radar: every theme of the last six scans with its flag, history, status and source mix.",
+    "operationId": "radar_api_emerging_themes_radar_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RadarResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Radar",
+    "tags": [
+     "emerging-themes"
     ]
    }
   },

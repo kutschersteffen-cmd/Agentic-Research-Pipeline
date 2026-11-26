@@ -13,6 +13,7 @@ from arp.emerging_themes.entity_resolution import resolve_mention_companies
 from arp.emerging_themes.extraction import tag_mention
 from arp.emerging_themes.ingestion.base import MentionSource
 from arp.emerging_themes.lineage import classify_lineage
+from arp.emerging_themes.radar import eligible_cluster_ids
 from arp.emerging_themes.scoring import score_clusters
 from arp.emerging_themes.synthesis import build_candidate
 from arp.ingestion.xbrl import XbrlFactSource
@@ -27,7 +28,6 @@ from arp.schemas.emerging_themes import (
     CompanyExposure,
     EmergingThemeCandidate,
     ExtractedTag,
-    LineageTransition,
     RawMention,
 )
 from arp.schemas.taxonomy import DerivationMethod
@@ -189,14 +189,13 @@ async def execute_emerging_themes_run(
     topic_store.save_period(period, clusters)
     topic_store.save_lineage_events(period, lineage_events)
 
-    # Only a BIRTH -- no lineage edge back to the prior period -- is
-    # eligible to become a candidate; see lineage.py's module docstring.
-    birth_cluster_ids = {e.cluster_id for e in lineage_events if e.transition == LineageTransition.BIRTH}
+    # A BIRTH, or a growing theme (accelerating/rising) that never had a candidate; see radar.py.
+    eligible_ids = eligible_cluster_ids(topic_store, period)
     clusters_by_id = {c.cluster_id: c for c in clusters}
     companies_by_id = {c.company_id: c for c in companies}
 
     # --- Synthesize + Validate + Output ---
-    for cluster_id in birth_cluster_ids:
+    for cluster_id in eligible_ids:
         cluster = clusters_by_id[cluster_id]
         member_tags = [tags_by_id[tid] for tid in cluster.member_tag_ids if tid in tags_by_id]
         try:

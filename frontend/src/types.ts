@@ -857,6 +857,33 @@ export interface EmergingThemesScheduleConfig {
   next_run_at?: string | null;
 }
 
+// GET /api/emerging-themes/radar (spec theme-radar-screen)
+export type RadarFlag = "accelerating" | "rising" | "new" | "steady" | "cooling";
+export type RadarStatus = "none" | "candidate" | "under_review" | "promoted" | "rejected" | "disconfirmed";
+
+export interface RadarTheme {
+  radar_id: string;
+  label: string;
+  flag: RadarFlag;
+  burst: number;
+  share: number;
+  baseline_share: number;
+  first_period: string;
+  last_period: string;
+  status: RadarStatus;
+  candidate: { run_id: string; theme_id: string } | null;
+  source_mix: Record<string, number>;
+  company_count: number;
+  labels: string[];
+  history: { period: string; mention_count: number; share: number; burst: number }[];
+}
+
+export interface RadarResponse {
+  periods: string[];
+  themes: RadarTheme[];
+  companies: Record<string, unknown>[];
+}
+
 // --- Engagement (stewardship) ---
 
 export type MilestoneStage =

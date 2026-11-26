@@ -251,3 +251,47 @@ async def test_promote_candidate_requires_a_reason(tmp_path, fake_llm, pg):
         raised = True
     assert raised
     assert llm.calls == []
+
+
+async def test_growing_theme_without_candidate_is_synthesized_with_birth(tmp_path, monkeypatch, fake_llm, pg):
+    """theme-radar-screen AC-23: a GROWTH cluster whose theme is accelerating with no candidate, and a BIRTH cluster,
+    both become candidates."""
+    from arp.emerging_themes.extraction import _TagDraft, _TagDraftList
+    from arp.schemas.emerging_themes import LineageEvent, LineageTransition
+
+    settings = _settings(tmp_path)
+    run_store = RunStore(pg, settings.runs_dir)
+    topic_store = TopicStateStore(settings.emerging_themes_state_dir / "topics")
+    for week in ("2026-W01", "2026-W02"):
+        topic_store.save_period(week, [
+            TopicCluster(cluster_id=f"g{week[-2:]}", period=week, representative_label="g", mention_count=1),
+            TopicCluster(cluster_id=f"bg{week[-2:]}", period=week, representative_label="bg", mention_count=99),
+        ])
+    monkeypatch.setattr(pipeline_module, "current_period", lambda: "2026-W03")
+
+    def fake_cluster_tags(tags, mentions_by_id, company_ids_by_mention, period, *, min_cluster_size, stability_reruns):
+        def cluster(cid, members):
+            return TopicCluster(cluster_id=cid, period=period, representative_label=cid, member_tag_ids=[t.tag_id for t in members],
+                                member_labels=[t.label for t in members], mention_count=len({t.mention_id for t in members}),
+                                source_types=[MentionSourceType.GDELT])
+        return [cluster("cl_grow", tags[:3]), cluster("cl_new", tags[3:])]
+
+    def fake_lineage(clusters, prior, period):
+        return [LineageEvent(cluster_id="cl_grow", period=period, transition=LineageTransition.GROWTH, prior_cluster_ids=["g02"], overlap_score=0.9),
+                LineageEvent(cluster_id="cl_new", period=period, transition=LineageTransition.BIRTH)]
+
+    monkeypatch.setattr(pipeline_module, "cluster_tags", fake_cluster_tags)
+    monkeypatch.setattr(pipeline_module, "classify_lineage", fake_lineage)
+    tag = _TagDraft(label="solid-state battery breakthrough", claim="Acme Battery Co unveiled a new solid-state cell chemistry.",
+                    entity_names=["Acme Battery Co"], action_type=ActionType.CAPEX,
+                    quote="Acme Battery Co unveils solid-state battery breakthrough")
+    draft = _CandidateDraft(theme_name="Solid-state", description="d", economic_rationale="e", rationale="r")
+    llm = fake_llm({"_TagDraftList": [_TagDraftList(tags=[tag])] * 5, "_CandidateDraft": [draft, draft]})
+    companies = [CompanyRef(company_id="acme", name="Acme Battery Co")]
+    settings = settings.model_copy(update={"emerging_themes_company_exposure_enabled": False})
+
+    run_id = create_emerging_themes_run(run_store, companies, "manual")
+    await execute_emerging_themes_run(run_id, companies, llm=llm, sources=[_FixedMentionSource(_mentions())], settings=settings,
+                                      run_store=run_store, topic_store=topic_store)
+
+    assert sorted(r["cluster_id"] for r in run_store.read_results(run_id)) == ["cl_grow", "cl_new"]

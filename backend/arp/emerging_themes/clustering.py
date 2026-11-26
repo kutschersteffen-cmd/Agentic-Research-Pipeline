@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from arp.emerging_themes.radar import SOURCE_CATEGORY
 from arp.schemas.emerging_themes import ExtractedTag, MentionSourceType, RawMention, TopicCluster
 
 _MATCH_JACCARD_THRESHOLD = 0.5  # what counts as "the same rerun cluster" when scoring stability
@@ -127,11 +128,14 @@ def cluster_tags(
         member_mention_ids = {t.mention_id for t in member_tags}
         company_ids: set[str] = set()
         source_types: set[MentionSourceType] = set()
+        source_counts: dict[str, int] = {}
         for mention_id in member_mention_ids:
             company_ids.update(company_ids_by_mention.get(mention_id, []))
             mention = mentions_by_id.get(mention_id)
             if mention is not None:
                 source_types.add(mention.source_type)
+                category = SOURCE_CATEGORY[mention.source_type]
+                source_counts[category] = source_counts.get(category, 0) + 1
         centroid = embeddings[sorted(members)].mean(axis=0).tolist()
         terms = top_terms_per_cluster[cluster_idx] if cluster_idx < len(top_terms_per_cluster) else []
         representative_label = ", ".join(terms) if terms else member_tags[0].label
@@ -145,6 +149,7 @@ def cluster_tags(
                 company_ids=sorted(company_ids),
                 mention_count=len(member_mention_ids),
                 source_types=sorted(source_types, key=lambda s: s.value),
+                source_counts=source_counts,
                 centroid=centroid,
                 stability_score=stability.get(label, 0.0),
             )
