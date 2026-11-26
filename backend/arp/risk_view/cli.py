@@ -86,7 +86,7 @@ def golden_cmd(
         prior = views.get(e["prior_file"]) if e.get("prior_file") else None
         view = views[e["file"]] = asyncio.run(build_risk_view(documents_dir / e["file"], e["company_id"],
                                                               e["fiscal_year"], llm, prior))
-        emitted = {_norm(r["heading"]): r for r in view["risks"]}
+        emitted = {_norm(r["heading"]): r for r in view["risks"] if r["change"] != "dropped"}  # this year's risks only
         current = [r for r in e["risks"] if r.get("change") != "dropped"]
         found = [emitted[_norm(r["heading"])] for r in current if _norm(r["heading"]) in emitted]
         recall = len(found) / len(current) if current else 1.0
@@ -98,7 +98,8 @@ def golden_cmd(
         line = f"{e['file']}: heading recall {recall:.3f}, mitigation precision {precision:.3f}"
         failed |= recall < min_recall or precision < min_precision
         if e.get("prior_file"):
-            pairs = [(r, emitted.get(_norm(r["heading"]))) for r in e["risks"] if r.get("change")]
+            every = {_norm(r["heading"]): r for r in view["risks"]}
+            pairs = [(r, every.get(_norm(r["heading"]))) for r in e["risks"] if r.get("change")]
             yoy = sum(1 for r, v in pairs if v and v["change"] == r["change"]) / len(pairs) if pairs else 1.0
             line += f", year-on-year {yoy:.3f}"
             failed |= yoy < min_yoy

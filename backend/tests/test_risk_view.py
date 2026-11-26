@@ -243,3 +243,19 @@ def test_ungrounded_heading_is_not_emitted(env, monkeypatch):  # AC-18
     monkeypatch.setattr("arp.grounding.is_grounded", lambda q, t, *a, **k: q != R2 and real(q, t, *a, **k))
     v = run_doc(env, env.html("k1.htm", K1), "M")
     assert [r["heading"] for r in v["risks"]] == [R1]
+
+
+def test_golden_recall_ignores_dropped_prior_risks(env, monkeypatch):
+    r3 = "A third risk that only last year's report named in its risk factors"
+    monkeypatch.setattr("arp.retrieval.embeddings.embed_texts", lambda texts: np.array(
+        [{R1: [1, 0, 0], R2: [0, 1, 0], r3: [0, 0, 1]}[t] for t in texts]))
+    (env.dir / "D").mkdir()
+    (env.dir / "D/m24.htm").write_text(k_html([(R1, B1), (R2, B2), (r3, "<p>Body.</p>")]))
+    (env.dir / "D/m25.htm").write_text(K1)
+    risks = [{"heading": h, "mitigations": [], "change": "same"} for h in (R1, R2, r3)]
+    labels = env.dir / "labels.json"
+    labels.write_text(json.dumps([
+        {"company_id": "m", "fiscal_year": 2024, "file": "m24.htm", "prior_file": None, "risks": []},
+        {"company_id": "m", "fiscal_year": 2025, "file": "m25.htm", "prior_file": "m24.htm", "risks": risks}]))
+    result = env.run("golden", "--documents-dir", str(env.dir / "D"), "--labels", str(labels), "--min-recall", "0")
+    assert "m25.htm: heading recall 0.667" in result.output, result.output
