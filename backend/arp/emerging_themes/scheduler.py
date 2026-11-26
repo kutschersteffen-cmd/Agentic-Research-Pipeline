@@ -8,6 +8,7 @@ from arp.emerging_themes.ingestion.edgar_fts import EdgarFullTextSearchSource
 from arp.emerging_themes.ingestion.gdelt import GdeltSource
 from arp.emerging_themes.ingestion.regulatory_rss import RegulatoryRssSource
 from arp.emerging_themes.pipeline import run_emerging_themes
+from arp.emerging_themes.signal_store import SignalStore
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.xbrl import XbrlFactSource
 from arp.llm.base import LLMClient
@@ -39,12 +40,14 @@ class EmergingThemesScheduler(IntervalScheduler):
     job_id = "emerging-themes-schedule"
 
     def __init__(
-        self, settings: Settings, run_store: RunStore, topic_store: TopicStateStore, llm_factory: Callable[[], LLMClient]
+        self, settings: Settings, run_store: RunStore, topic_store: TopicStateStore, llm_factory: Callable[[], LLMClient],
+        *, signal_store: SignalStore | None = None,
     ) -> None:
         super().__init__(settings.emerging_themes_state_dir)
         self.settings = settings
         self.run_store = run_store
         self.topic_store = topic_store
+        self.signal_store = signal_store
         self._llm_factory = llm_factory  # zero-arg callable -- deferred so a missing API key only errors when a run actually fires
 
     def _default_config(self) -> EmergingThemesScheduleConfig:
@@ -82,4 +85,5 @@ class EmergingThemesScheduler(IntervalScheduler):
             topic_store=self.topic_store,
             triggered_by="schedule",
             xbrl_source=self._xbrl_source() if self.settings.xbrl_facts_enabled else None,
+            signal_store=self.signal_store,
         )

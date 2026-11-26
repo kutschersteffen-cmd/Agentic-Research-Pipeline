@@ -15,6 +15,7 @@ from arp.db.session import require_dsn
 from arp.discovery.scheduler import DiscoveryScheduler
 from arp.discovery.site_finder import WebSearchClient, build_web_search_client
 from arp.emerging_themes.scheduler import EmergingThemesScheduler
+from arp.emerging_themes.signal_store import SignalStore
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.esef import EsefDocumentSource
 from arp.ingestion.indexing_config import IndexingConfig
@@ -231,10 +232,18 @@ def get_topic_store() -> TopicStateStore:
 
 
 @lru_cache
+def get_signal_store() -> SignalStore:
+    return SignalStore(get_settings().postgres_dsn)
+
+
+@lru_cache
 def get_emerging_themes_scheduler() -> EmergingThemesScheduler:
     settings = batch_settings(get_settings(), "emerging_themes" in get_settings().batch_scheduled_run_types)
     # The factory builds a fresh client per run: a batching client must never be shared across runs.
-    return EmergingThemesScheduler(settings, get_run_store(), get_topic_store(), llm_factory=lambda: build_llm_client(settings))
+    return EmergingThemesScheduler(
+        settings, get_run_store(), get_topic_store(), llm_factory=lambda: build_llm_client(settings),
+        signal_store=get_signal_store(),
+    )
 
 
 @lru_cache

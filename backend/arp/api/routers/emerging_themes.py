@@ -8,6 +8,7 @@ from arp.api.deps import (
     get_emerging_themes_scheduler,
     get_llm_client,
     get_run_store,
+    get_signal_store,
     get_taxonomy_store,
     get_topic_store,
     get_xbrl_source,
@@ -25,6 +26,7 @@ from arp.emerging_themes.pipeline import (
     reject_candidate,
 )
 from arp.emerging_themes.scheduler import EmergingThemesScheduler, default_sources
+from arp.emerging_themes.signal_store import SignalStore
 from arp.ingestion.xbrl import XbrlFactSource
 from arp.llm.base import LLMClient
 from arp.schemas.common import CompanyRef
@@ -40,6 +42,7 @@ router = APIRouter(prefix="/api/emerging-themes", tags=["emerging-themes"])
 class EmergingThemesRunRequest(BaseModel):
     companies: list[CompanyRef] | None = None
     universe_path: str | None = None
+    fetch: bool = True
 
 
 @router.post("/runs")
@@ -50,6 +53,7 @@ async def start_emerging_themes_run(
     topic_store: TopicStateStore = Depends(get_topic_store),
     llm: LLMClient = Depends(get_llm_client),
     xbrl_source: XbrlFactSource = Depends(get_xbrl_source),
+    signal_store: SignalStore = Depends(get_signal_store),
 ) -> dict:
     """Manual trigger: scan public news/filings/regulatory flow across the
     given (or referenced) universe for emerging themes. Uses the exact
@@ -65,6 +69,7 @@ async def start_emerging_themes_run(
             run_id, companies, llm=llm, sources=default_sources(settings), settings=settings,
             run_store=run_store, topic_store=topic_store,
             xbrl_source=xbrl_source if settings.xbrl_facts_enabled else None,
+            signal_store=signal_store, fetch=req.fetch,
         )
 
     keep_task(_background())

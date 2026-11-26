@@ -46,6 +46,38 @@ class RawMention(BaseModel):
     fetched_at: str = Field(default_factory=now_iso)
 
 
+class SignalSourceType(StrEnum):
+    NEWS = "news"
+    FILINGS = "filings"
+    REGULATORS = "regulators"
+    RESEARCH = "research"
+    JOBS = "jobs"
+
+
+SIGNAL_SOURCE_TYPE = {  # MentionSourceType -> SignalSourceType
+    MentionSourceType.GDELT: SignalSourceType.NEWS,
+    MentionSourceType.EDGAR_FTS: SignalSourceType.FILINGS,
+    MentionSourceType.REGULATORY_RSS: SignalSourceType.REGULATORS,
+}
+
+
+class SignalItem(BaseModel):
+    """One fetched item kept in the signal store (`signal_items`), deduplicated by `content_hash`."""
+
+    content_hash: str
+    source: MentionSourceType
+    source_type: SignalSourceType
+    title: str
+    text: str
+    url: str
+    raw_entity_names: list[str]
+    published_at: str | None
+    published_at_is_estimated: bool
+    item_at: str  # published_at if set, else first_seen_at
+    first_seen_at: str
+    last_seen_at: str
+
+
 class ActionType(StrEnum):
     """Roadmap P3's action-evidence taxonomy: classifies whether a claim
     describes something a company actually *did* (talk vs. walk) rather

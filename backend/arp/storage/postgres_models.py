@@ -172,6 +172,40 @@ class ChunkEmbeddingModel(Base):
     embedding = mapped_column(Vector())
 
 
+class SignalItemModel(Base):
+    """The Theme Radar signal store (arp/emerging_themes/signal_store.py): every item an Emerging Themes
+    scan fetched, once per content hash."""
+
+    __tablename__ = "signal_items"
+
+    content_hash: Mapped[str] = mapped_column(String, primary_key=True)
+    source: Mapped[str] = mapped_column(String)
+    source_type: Mapped[str] = mapped_column(String)
+    title: Mapped[str] = mapped_column(Text)
+    text: Mapped[str] = mapped_column(Text)
+    url: Mapped[str] = mapped_column(Text)
+    raw_entity_names: Mapped[list[str]] = mapped_column(JSONB)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    published_at_is_estimated: Mapped[bool] = mapped_column(Boolean)
+    item_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class SignalScanModel(Base):
+    """One recorded Emerging Themes scan (light or full); written from spec slice c on."""
+
+    __tablename__ = "signal_scans"
+
+    scan_id: Mapped[str] = mapped_column(String, primary_key=True)
+    kind: Mapped[str] = mapped_column(String)
+    run_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    items_fetched: Mapped[dict] = mapped_column(JSONB)
+    items_new: Mapped[dict] = mapped_column(JSONB)
+
+
 class ReleaseModel(Base):
     """One publication of a source document for an issuer in a run (E17).
     `published_by` / `withdrawn_by` are internal user ids and never served."""
