@@ -367,6 +367,11 @@ class Settings(BaseSettings):
     revenue_exposure_significant_threshold: float = Field(default=0.2)
     revenue_exposure_minor_threshold: float = Field(default=0.05)
 
+    # Company exposure tiers (arp/research/company_exposure.py), checked per request, not at app start.
+    theme_tier_pure_play: float = Field(default=0.70)
+    theme_tier_majority: float = Field(default=0.50)
+    theme_tier_partial: float = Field(default=0.05)
+
     # Theme exposure layers (arp/research/exposure_layers.py): S = w1*L1 + w2*L2 + w3*L3.
     # Checked by layer_params, not here, so a bad value fails only the layers, never app start.
     theme_layer_w1: float = Field(default=0.45)

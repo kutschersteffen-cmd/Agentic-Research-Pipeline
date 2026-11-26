@@ -18,6 +18,7 @@ from arp.discovery.site_finder import build_web_search_client
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.factory import batch_settings
 from arp.research.activity_generator import build_theme
+from arp.research.company_exposure import load_run_exposure
 from arp.research.exposure_layers import LayerSettingsError, load_run_layers, parse_as_of
 from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
 from arp.research.pipeline import create_theme_run, execute_theme_run
@@ -272,3 +273,68 @@ def get_theme_layers(
         decay=params.decay, max_hops=params.max_hops, pure_play_threshold=params.pure_play_threshold,
         rows=[ThemeLayerRow(**{**vars(r), "l1": _r4(r.l1), "l2": _r4(r.l2), "score": _r4(r.score)}) for r in rows],
     )
+
+
+class ExposureThresholds(BaseModel):
+    pure_play: float
+    majority: float
+    partial: float
+
+
+class MomentumSignals(BaseModel):
+    rd: float | None
+    capex: float | None
+    mentions: float | None
+
+
+class CompanyExposureActivity(BaseModel):
+    activity_id: str
+    activity_name: str
+    verdict: str
+    share: float | None
+    share_low: float | None
+    share_high: float | None
+    basis: str | None
+    relation: str | None
+    role: str | None
+
+
+class CompanyExposureRow(BaseModel):
+    company_id: str
+    name: str
+    tier: str
+    share: float | None
+    share_low: float | None
+    share_high: float | None
+    share_basis: str | None
+    momentum: float | None
+    momentum_band: str | None
+    momentum_signals: MomentumSignals
+    role: str | None
+    needs_check: bool
+    activities: list[CompanyExposureActivity]
+
+
+class CompanyExposure(BaseModel):
+    run_id: str
+    thresholds: ExposureThresholds
+    rows: list[CompanyExposureRow]
+
+
+@router.get("/runs/{run_id}/exposure", response_model=CompanyExposure)
+def get_company_exposure(run_id: str, run_store: RunStore = Depends(get_run_store)) -> CompanyExposure:
+    """One row per company of a theme run: revenue share, momentum, tier and role; computed on read."""
+    try:
+        thresholds, rows = load_run_exposure(Settings(), run_store, run_id)
+    except LookupError as exc:
+        raise HTTPException(404, exc.args[0]) from exc
+    except ValueError as exc:
+        raise HTTPException(503, str(exc)) from exc
+    keys = ("share", "share_low", "share_high")
+    return CompanyExposure(run_id=run_id, thresholds=ExposureThresholds(**thresholds), rows=[
+        CompanyExposureRow(**{
+            **r, **{k: _r4(r[k]) for k in (*keys, "momentum")},
+            "momentum_signals": {k: _r4(v) for k, v in r["momentum_signals"].items()},
+            "activities": [{**a, **{k: _r4(a[k]) for k in keys}} for a in r["activities"]],
+        }) for r in rows
+    ])
