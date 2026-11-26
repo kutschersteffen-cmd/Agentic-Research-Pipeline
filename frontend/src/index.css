@@ -3080,7 +3080,7 @@ a.button-link.secondary:hover, .toolbar a.button-link.secondary:hover { backgrou
 .orb-chat { margin-top: var(--s-4); border: 1px solid var(--panel-border); border-radius: var(--r-lg); background: var(--panel); }
 .orb-chat-stage { height: 220px; }
 .orb-chat-phase { right: 14px; bottom: 12px; z-index: 2; color: var(--text); }
-.orb-chat-phase i { background: var(--hi); }
+.orb-chat-phase i { background: var(--muted); }
 .orb-chat-body { display: flex; flex-direction: column; gap: var(--s-3); padding: var(--s-4); }
 .orb-chat-form { display: flex; gap: var(--s-2); }
 .orb-chat-form input { flex: 1; min-width: 0; height: 44px; padding: 0 12px; border: 1px solid var(--panel-border-strong); border-radius: var(--r-md); background: var(--bg); color: var(--text); font: inherit; font-size: 16px; }
@@ -3124,11 +3124,11 @@ a.button-link.secondary:hover, .toolbar a.button-link.secondary:hover { backgrou
 .desk-pill { padding: 2px 10px; border-radius: var(--r-pill); font-family: var(--font-mono); font-size: var(--text-xs); background: var(--well); color: var(--muted); }
 .desk-pill[data-kind="found"] { color: var(--high); }
 .desk-pill[data-kind="calculated"] { color: var(--run); }
-.desk-pill[data-kind="to_check"] { color: var(--hi); }
+.desk-pill[data-kind="to_check"] { color: var(--mid); }
 .desk-sentence { line-height: 1.7; }
 .desk-mark { font-family: var(--font-mono); font-size: var(--text-sm); }
 .desk-mark[data-kind="calculated"] { color: var(--run); }
-.desk-mark[data-kind="to_check"] { color: var(--hi); }
+.desk-mark[data-kind="to_check"] { color: var(--mid); }
 .desk-cite { display: inline-grid; place-items: center; min-width: 28px; height: 24px; margin: 0 0 0 var(--s-1_5); padding: 0 6px; border: 1px solid var(--panel-border-strong); border-radius: var(--r-sm); background: transparent; color: var(--text); font-family: var(--font-mono); font-size: var(--text-xs); vertical-align: 1px; }
 button.desk-cite:hover:not(:disabled), .desk-cite[aria-pressed="true"] { background: var(--accent-tint); }
 .desk-calc { margin-top: var(--s-4); padding: var(--s-3) var(--s-4); border: 1px solid var(--panel-border); border-radius: var(--r-lg); background: var(--panel); }
@@ -3137,9 +3137,9 @@ button.desk-cite:hover:not(:disabled), .desk-cite[aria-pressed="true"] { backgro
 .desk-citation-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--s-3); align-items: start; }
 .desk-citation-head .desk-cite { margin: 0; }
 .desk-citation-head button { margin: 0; min-width: 36px; }
-.desk-citation blockquote { margin: var(--s-4) 0; padding: var(--s-3); border-radius: var(--r-md); background: var(--await); line-height: 1.5; }
+.desk-citation blockquote { margin: var(--s-4) 0; padding: var(--s-3); border-radius: var(--r-md); background: var(--well); line-height: 1.5; }
 .desk-grounded { display: inline-block; margin: 0; padding: 2px 10px; border-radius: var(--r-pill); font-family: var(--font-mono); font-size: var(--text-xs); background: var(--well); color: var(--high); }
-.desk-grounded[data-grounded="false"] { color: var(--hi); }
+.desk-grounded[data-grounded="false"] { color: var(--mid); }
 .desk-citation-nav { display: flex; justify-content: space-between; margin-top: var(--s-3); }
 .desk-citation-nav button:only-child:last-child { margin-left: auto; }
 .desk-time { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-6); margin: 0; padding: 0; list-style: none; }
