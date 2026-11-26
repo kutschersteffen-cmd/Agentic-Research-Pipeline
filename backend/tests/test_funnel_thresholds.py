@@ -48,4 +48,4 @@ def test_funnel_record_keys():  # AC-17 (shape)
 
 
 def test_setting_defaults_off():
-    assert Settings().models_universe_funnel_enabled is False
+    assert Settings().models_universe_funnel_enabled is None

@@ -242,10 +242,16 @@ class Settings(BaseSettings):
         "or cuda (fail if no GPU)",
     )
     compute_models_url: str | None = Field(default=None, description="arp-models service URL: rerank and embeddings.")
-    models_universe_funnel_enabled: bool = Field(
-        default=False,
+    models_universe_funnel_enabled: bool | None = Field(
+        default=None,
         description="Theme runs: score each company x activity pair with embeddings -> cross-encoder -> NLI "
-        "(arp/research/funnel.py) after evidence is gathered, and skip the LLM debate for pairs it screens out.",
+        "(arp/research/funnel.py) after evidence is gathered, and skip the LLM debate for pairs it screens out. "
+        "Unset: only for themes with a tuned entry in the thresholds file; true: every theme; false: none. "
+        "With compute_models_url unset the models run in the backend process (NLI needs the `models` extra); "
+        "when they fail, the pair goes to the debate.",
+    )
+    funnel_thresholds_path: Path | None = Field(
+        default=None, description="Theme funnel thresholds JSON; unset means the packaged funnel_thresholds.json."
     )
     compute_bucket: str | None = Field(default=None, description="Cloud Storage bucket PDFs are uploaded to for parsing.")
     # str, not Path: an empty env value must stay empty (Path("") is ".").

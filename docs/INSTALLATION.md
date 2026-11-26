@@ -439,6 +439,11 @@ ARP_TRUSTED_HOSTS=["*"]
 # ARP_COMPUTE_PARSE_URL=https://...
 ```
 
+**Theme funnel.** Without `ARP_COMPUTE_MODELS_URL` the theme funnel's models run
+inside the backend process, with no container or service. NLI needs the `models`
+extra (`pip install -e "backend[models]"`); without it each company × activity
+pair goes to the debate as if the funnel were off.
+
 Packages come from your Artifactory: point pip and npm at it once
 (`pip config set global.index-url <artifactory-pypi-url>`,
 `npm config set registry <artifactory-npm-url>`), then

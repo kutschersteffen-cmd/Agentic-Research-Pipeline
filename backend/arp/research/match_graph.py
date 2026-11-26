@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import TypedDict
 
 from langgraph.graph import END, StateGraph
@@ -26,6 +27,7 @@ from arp.schemas.revenue_exposure import RevenueExposureResult
 from arp.schemas.thematic import ActivityDefinition, AgentOpinion, CompanyMatch, ExposureEstimate, FunnelRecord, MatchVerdict
 
 _MAX_EVIDENCE_CHUNKS_PER_CALL = 12
+logger = logging.getLogger(__name__)
 
 
 def _no_evidence_opinion() -> AgentOpinion:
@@ -221,15 +223,20 @@ def _funnel_content_store(settings: Settings):
 
 
 async def _funnel(state: MatchState) -> dict:
-    record = await asyncio.to_thread(  # sync model inference must not block the batch runner's event loop
-        score_pair, state["documents"], state["activity"], state["funnel_thresholds"],
-        _funnel_content_store(state["settings"]), state["funnel_query"],
-    )
+    try:
+        record = await asyncio.to_thread(  # sync model inference must not block the batch runner's event loop
+            score_pair, state["documents"], state["activity"], state["funnel_thresholds"],
+            _funnel_content_store(state["settings"]), state["funnel_query"],
+        )
+    except Exception as exc:  # a model failure never ends the match: the pair goes to the debate
+        logger.warning("Funnel could not run for %s / %s: %s; sent to the debate.",
+                       state["company"].company_id, state["activity"].activity_id, exc)
+        return {"funnel": None}
     return {"funnel": record}
 
 
 def _route_after_funnel(state: MatchState) -> str:
-    return "run_advocate" if state["funnel"].passed else "finalize_screened_out"
+    return "run_advocate" if state["funnel"] is None or state["funnel"].passed else "finalize_screened_out"
 
 
 async def _finalize_screened_out(state: MatchState) -> dict:

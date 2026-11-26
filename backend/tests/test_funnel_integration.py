@@ -328,3 +328,50 @@ async def test_second_positive_passes(tmp_path, fake_llm, monkeypatch):  # AC-50
     assert f.passed is True
     assert f.positive == f.positives[1]
     assert f.entail_positive == 0.90
+
+
+# --- spec 2026-11-26-theme-funnel-tuning slice 1 ---------------------------------------------------------------------
+TUNED = {"set_id": "s", "taxonomy_id": "x", "taxonomy_version": 1, "created_at": "c", "min_recall": 0.95,
+         "tune_recall": 1.0, "holdout_recall": 1.0, "holdout_positives": 2}
+
+
+async def test_default_funnels_tuned_theme_only(tmp_path, fake_llm, monkeypatch, thresholds_file):  # AC-11, AC-13
+    Models(monkeypatch, G_ROWS)
+    thresholds_file({"default": D, "t1": {"t_rerank": 5.0, "tuned": TUNED}, "t2": {"t_rerank": 5.0}})
+    tuned = await _run(tmp_path, fake_llm({}), [_doc("c1", P_PASS)], theme=_theme("t1")[0], on=None)
+    assert tuned.adjudicator_rationale == "screened out by funnel"
+    untuned = await _run(tmp_path, _debate_script(fake_llm), [_doc("c1", P_PASS)], theme=_theme("t2")[0], on=None)
+    assert untuned.funnel is None
+
+
+async def test_tuned_object_not_passed_on(tmp_path, fake_llm, monkeypatch, thresholds_file):  # AC-12
+    Models(monkeypatch, G_ROWS)
+    thresholds_file({"default": D, "t1": {"t_rerank": 1.0, "tuned": TUNED}})
+    match = await _run(tmp_path, _debate_script(fake_llm), [_doc("c1", P_PASS)], theme=_theme("t1")[0], on=None)
+    assert match.funnel.passed is True
+    assert match.funnel.thresholds == {**D, "t_rerank": 1.0}
+
+
+async def test_thresholds_path_setting(tmp_path, fake_llm, monkeypatch):  # funnel_thresholds_path
+    Models(monkeypatch, G_ROWS)
+    p = tmp_path / "f.json"
+    p.write_text(json.dumps({"default": D, "t1": {"t_rerank": 5.0, "tuned": TUNED}}))
+    monkeypatch.setenv("ARP_FUNNEL_THRESHOLDS_PATH", str(p))
+    match = await _run(tmp_path, fake_llm({}), [_doc("c1", P_PASS)], theme=_theme("t1")[0], on=None)
+    assert match.adjudicator_rationale == "screened out by funnel"
+
+
+async def test_model_failure_goes_to_debate(tmp_path, fake_llm, monkeypatch, thresholds_file, caplog):  # AC-17
+    Models(monkeypatch, G_ROWS)
+
+    def broken(*a, **k):
+        raise RuntimeError("models missing")
+
+    monkeypatch.setattr(funnel.models, "classify", broken)
+    thresholds_file({"default": D, "t1": {"t_rerank": 1.0, "tuned": TUNED}})
+    llm = _debate_script(fake_llm)
+    match = await _run(tmp_path, llm, [_doc("c1", P_PASS)], theme=_theme("t1")[0], on=None)
+    assert match.funnel is None
+    assert match.verdict == MatchVerdict.INCLUDE
+    assert len(llm.calls) == 3
+    assert "Funnel could not run for c1" in caplog.text and "models missing" in caplog.text
