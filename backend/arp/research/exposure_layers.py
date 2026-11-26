@@ -73,7 +73,7 @@ def _l1(matches: list[dict]) -> float | None:
         rev["value_pct"]
         for m in matches
         if m.get("verdict") == "include"
-        and (rev := (m.get("revenue_exposure") or {}).get("revenue") or {}).get("source") in ("catalogue", "extracted")
+        and (rev := (m.get("revenue_exposure") or {}).get("revenue") or {}).get("source") in ("catalogue", "extracted", "reported")
         and rev.get("value_pct") is not None
     ]
     return max(values, default=None)

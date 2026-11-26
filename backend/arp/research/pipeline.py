@@ -30,6 +30,7 @@ from arp.schemas.thematic import CompanyMatch, ThemeDefinition
 from arp.storage.issuer_sectors import IssuerSectorStore, apply_master
 from arp.storage.run_store import RunStore
 from arp.universe import load_company_universe
+from arp.xbrl_pipeline.store import XbrlStore
 
 logger = logging.getLogger(__name__)
 
@@ -157,6 +158,7 @@ def create_theme_run(
             "use_sample_io": use_sample_io,
             "revenue_catalogue_path": revenue_catalogue_path,
             "enable_rd_exposure": enable_rd_exposure,
+            "theme_revenue_share": settings.theme_revenue_share_enabled,
             # The saved taxonomy version the theme came from, if any: the output catalog's "used by" link.
             **({"batch": True} if settings.llm_batch else {}),
             "taxonomy_id": taxonomy_id,
@@ -213,12 +215,20 @@ async def resume_theme_run(
     indirect_model = resolve_indirect_exposure_model(settings, use_sample=use_sample)
     revenue_resolver = None
     revenue_catalogue_path = manifest.params.get("revenue_catalogue_path")
+    # The setting's value when the run was created, so a resumed run never changes method halfway.
+    xbrl_store = XbrlStore(settings.xbrl_dir) if manifest.params.get("theme_revenue_share") else None
     if revenue_catalogue_path:
         mapping_path = run_dir / "catalogue_mapping.json"
         mappings = [ActivityCatalogueMapping.model_validate(m) for m in json.loads(mapping_path.read_text())] if mapping_path.exists() else []
         revenue_resolver = RevenueResolverContext(
             catalogue_by_company=catalogue_by_company(load_catalogue(Path(revenue_catalogue_path))),
             mappings=mappings, registry=registry, settings=settings, schema=schema, isic_model=indirect_model,
+            xbrl_store=xbrl_store,
+        )
+    elif xbrl_store is not None:
+        revenue_resolver = RevenueResolverContext(
+            catalogue_by_company={}, mappings=[], registry=registry, settings=settings, schema=schema,
+            isic_model=indirect_model, xbrl_store=xbrl_store, extract_enabled=False,
         )
 
     rd_resolver = None

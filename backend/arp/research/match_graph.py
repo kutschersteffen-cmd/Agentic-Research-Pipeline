@@ -113,7 +113,7 @@ async def _resolve_rd(state: MatchState) -> dict:
 
 def _route_after_revenue(state: MatchState) -> str:
     revenue_exposure = state["revenue_exposure"]
-    if revenue_exposure is not None and revenue_exposure.revenue.value_pct is not None:
+    if revenue_exposure is not None and revenue_exposure.revenue.value_pct is not None and revenue_exposure.revenue.source != "modelled":
         # Path 1 (catalogue) or path 2 (extraction) resolved a hard
         # number -- the qualitative debate (path 3) is skipped entirely,
         # both for cost and because a real disclosed/extracted figure
@@ -129,7 +129,9 @@ async def _finalize_from_revenue(state: MatchState) -> dict:
     revenue = revenue_exposure.revenue
     banded = band_exposure(revenue.value_pct, settings)
     verdict = MatchVerdict.EXCLUDE if banded == ExposureEstimate.NONE else MatchVerdict.INCLUDE
-    source_desc = "structured revenue catalogue" if revenue.source == "catalogue" else "an extracted, grounded disclosure figure"
+    source_desc = {"catalogue": "structured revenue catalogue", "reported": "reported segment revenue"}.get(
+        revenue.source, "an extracted, grounded disclosure figure"
+    )
     rationale = f"Resolved via {source_desc}: {revenue.value_pct:.1%} of revenue attributed to this activity. {revenue.notes}".strip()
     citations = [revenue.citation] if revenue.citation else []
     ungrounded = revenue.citation is not None and not revenue.citation.grounded

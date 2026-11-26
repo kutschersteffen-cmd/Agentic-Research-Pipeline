@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from arp.config import Settings
@@ -19,6 +20,7 @@ from arp.schemas.revenue_exposure import (
     RevenueExposureResult,
 )
 from arp.schemas.thematic import ActivityDefinition, ExposureEstimate
+from arp.xbrl_pipeline.store import XbrlStore
 
 
 def is_sector_relevant(company_isic: str | None, activity_core_isic_codes: list[str]) -> bool:
@@ -132,6 +134,73 @@ async def extract_schema_fields(
     return {fid: to_exposure(first.get(fid), f"{schema.schema_id}:v{schema.version}") for fid in field_ids}, result.usage
 
 
+def _kw_match(keyword: str, text: str) -> bool:
+    return bool(keyword.strip()) and re.search(
+        r"(?<!\w)" + r"\s+".join(map(re.escape, keyword.split())) + r"(?!\w)", text, re.IGNORECASE
+    ) is not None
+
+
+def _activity_match(activity: ActivityDefinition, text: str) -> bool:
+    return any(_kw_match(k, text) for k in activity.seed_keywords) and not any(
+        _kw_match(k, text) for k in activity.exclusion_keywords
+    )
+
+
+def resolve_from_segments(
+    company: CompanyRef, activity: ActivityDefinition, store: XbrlStore, settings: Settings
+) -> tuple[MetricExposure, MetricExposure]:
+    """The `reported` and `modelled` revenue shares from the company's XBRL
+    segment rows and segment note (spec theme-revenue-share). No LLM call."""
+    unresolved = MetricExposure(source="unresolved")
+    keys = store.ciks()
+    key = company.cik.zfill(10) if company.cik and company.cik.zfill(10) in keys else None
+    key = key or next((k for k in keys if company.company_id in store.company_ids(k)), None)
+    if key is None:
+        return unresolved, unresolved
+    revenue = [r for r in store.read_segments(key) if r.metric == "revenue"]
+    if not revenue:
+        return unresolved, unresolved
+    year = max(r.fiscal_year for r in revenue)
+    rows = [r for r in revenue if r.fiscal_year == year]
+
+    def group(kind: str, level: str | None) -> list:
+        return [r for r in rows if r.axis_kind == kind and r.level == level]
+
+    total_group = next(
+        (g for g in (group("segment", None), group("product", "standard"), group("product", "company"), group("geography", None))
+         if g and all(r.sum_matches_total for r in g)),
+        None,
+    )
+    total = sum(r.value for r in total_group) + (total_group[0].reconciling or 0) if total_group else 0
+    if total <= 0:
+        return unresolved, unresolved
+
+    for g in (group("product", "company"), group("segment", None)):
+        hits = [r for r in g if _activity_match(activity, r.segment)]
+        if hits:
+            reported = MetricExposure(
+                value_pct=min(sum(r.value for r in hits) / total, 1.0), source="reported",
+                notes=f"Reported segments (FY{year}): {', '.join(r.segment for r in hits)}",
+            )
+            return reported, unresolved
+
+    note = store.read_segment_note(key)
+    if not note:
+        return unresolved, unresolved
+    sentences = [x.strip() for x in re.split(r"(?<=[.!?])\s+|\n+", note) if x.strip()]
+    hits = [r for r in group("segment", None) if any(_kw_match(r.segment, x) and _activity_match(activity, x) for x in sentences)]
+    if not hits:
+        return unresolved, unresolved
+    share = min(sum(r.value for r in hits) / total, 1.0)
+    lo, hi = settings.revenue_share_modelled_low_factor, settings.revenue_share_modelled_high_factor
+    modelled = MetricExposure(
+        value_pct=(share * lo + share * hi) / 2, low_pct=share * lo, high_pct=share * hi, source="modelled",
+        notes=f"Modelled from segment descriptions (FY{year}): {', '.join(r.segment for r in hits)}; "
+        f"counted at {lo * 100:g}-{hi * 100:g}% of segment revenue.",
+    )
+    return unresolved, modelled
+
+
 @dataclass
 class RevenueResolverContext:
     """Bundles the run-scoped inputs the resolver needs, so
@@ -150,6 +219,9 @@ class RevenueResolverContext:
     enabled -- if the caller already resolved a company's ISIC code via
     `indirect_model` for that tier, pass it into `resolve_company_activity_exposure`
     directly instead and this field can stay None."""
+    xbrl_store: XbrlStore | None = None
+    """None: the reported/modelled steps are off."""
+    extract_enabled: bool = True
 
 
 async def resolve_company_activity_exposure(
@@ -178,14 +250,21 @@ async def resolve_company_activity_exposure(
         m: resolve_from_catalogue(activity.activity_id, m, company_rows, ctx.mappings) for m in ("revenue", "capex")
     }
     metrics["opex"] = MetricExposure(source="unresolved")  # no catalogue mapping for OpEx: extraction only
+    modelled = None
+    if ctx.xbrl_store is not None and metrics["revenue"].source == "unresolved":
+        reported, modelled = resolve_from_segments(company, activity, ctx.xbrl_store, ctx.settings)
+        if reported.source == "reported":
+            metrics["revenue"] = reported
     todo = {field_id_for(ctx.schema, activity.activity_id, m): m for m, e in metrics.items() if e.source == "unresolved"}
-    if todo and relevant:
+    if todo and relevant and ctx.extract_enabled:
         extracted, usage = await extract_schema_fields(
             company, ctx.schema, list(todo), documents=documents, registry=ctx.registry,
             llm=llm, verifier_llm=verifier_llm, settings=ctx.settings,
         )
         for fid, m in todo.items():
             metrics[m] = extracted[fid]
+    if modelled is not None and modelled.source == "modelled" and metrics["revenue"].source == "unresolved":
+        metrics["revenue"] = modelled
 
     result = RevenueExposureResult(
         activity_id=activity.activity_id, revenue=metrics["revenue"], capex=metrics["capex"], opex=metrics["opex"],
