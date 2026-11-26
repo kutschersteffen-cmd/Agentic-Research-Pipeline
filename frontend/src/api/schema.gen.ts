@@ -13848,6 +13848,11 @@ export interface components {
         EmergingThemesRunRequest: {
             /** Companies */
             companies?: components["schemas"]["CompanyRef"][] | null;
+            /**
+             * Fetch
+             * @default true
+             */
+            fetch: boolean;
             /** Universe Path */
             universe_path?: string | null;
         };

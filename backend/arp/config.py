@@ -424,6 +424,9 @@ class Settings(BaseSettings):
     )
     emerging_themes_schedule_universe_path: Path | None = Field(default=None)
     emerging_themes_lookback_days: int = Field(default=14, description="How far back each Ingest pass looks for new mentions.")
+    emerging_themes_full_scan_max_items: int = Field(
+        default=1000, description="A full scan with the signal store reads at most this many stored items, newest first."
+    )
     emerging_themes_min_independent_sources: int = Field(
         default=2, description="A cluster needs at least this many distinct source URLs before it can become a candidate."
     )

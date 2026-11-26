@@ -14,6 +14,7 @@ from arp.emerging_themes.extraction import tag_mention
 from arp.emerging_themes.ingestion.base import MentionSource
 from arp.emerging_themes.lineage import classify_lineage
 from arp.emerging_themes.scoring import score_clusters
+from arp.emerging_themes.signal_store import SignalStore
 from arp.emerging_themes.synthesis import build_candidate
 from arp.ingestion.xbrl import XbrlFactSource
 from arp.llm.base import LLMClient, LLMUsage
@@ -65,6 +66,8 @@ async def execute_emerging_themes_run(
     run_store: RunStore,
     topic_store: TopicStateStore,
     xbrl_source: XbrlFactSource | None = None,
+    signal_store: SignalStore | None = None,
+    fetch: bool = True,
 ) -> str:
     """Runs the full Ingest -> Extract -> Detect -> Synthesize -> Validate
     -> Output pipeline against an already-created run (see
@@ -90,11 +93,26 @@ async def execute_emerging_themes_run(
 
     # --- Ingest ---
     mentions: list[RawMention] = []
-    for source in sources:
+    for source in sources if fetch else []:
         try:
-            mentions.extend(await source.fetch(since))
+            fetched = await source.fetch(since)
         except Exception:  # noqa: BLE001 - one source failing must not abort the run
             logger.exception("Ingestion failed for source %s", source.name)
+            continue
+        mentions.extend(fetched)
+        if signal_store is not None:
+            signal_store.add_items(fetched)
+    if signal_store is not None:
+        # With the store, the scan reads its window from it: the newest items first, up to the cap.
+        items = sorted(signal_store.read_items(since=since), key=lambda i: datetime.fromisoformat(i.item_at), reverse=True)
+        mentions = [
+            RawMention(
+                mention_id=i.content_hash, source_type=i.source, title=i.title, text=i.text, url=i.url,
+                raw_entity_names=i.raw_entity_names, published_at=i.published_at,
+                published_at_is_estimated=i.published_at_is_estimated, fetched_at=i.last_seen_at,
+            )
+            for i in items[: settings.emerging_themes_full_scan_max_items]
+        ]
     mentions_by_id = {m.mention_id: m for m in mentions}
     for mention in mentions:
         run_store.append_jsonl(run_store.run_dir(run_id) / "mentions.jsonl", mention.model_dump(mode="json"))
@@ -283,6 +301,8 @@ async def run_emerging_themes(
     topic_store: TopicStateStore,
     triggered_by: str = "manual",
     xbrl_source: XbrlFactSource | None = None,
+    signal_store: SignalStore | None = None,
+    fetch: bool = True,
 ) -> str:
     """Convenience wrapper (create + execute in one call) for the CLI and
     the scheduler, where blocking until completion is expected."""
@@ -291,7 +311,7 @@ async def run_emerging_themes(
         JobManager(run_store)._update(run_id, lambda m: m.params.__setitem__("batch", True))
     return await execute_emerging_themes_run(
         run_id, companies, llm=llm, sources=sources, settings=settings, run_store=run_store, topic_store=topic_store,
-        xbrl_source=xbrl_source,
+        xbrl_source=xbrl_source, signal_store=signal_store, fetch=fetch,
     )
 
 

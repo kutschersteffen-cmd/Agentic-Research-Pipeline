@@ -10928,6 +10928,11 @@
       ],
       "title": "Companies"
      },
+     "fetch": {
+      "default": true,
+      "title": "Fetch",
+      "type": "boolean"
+     },
      "universe_path": {
       "anyOf": [
        {
