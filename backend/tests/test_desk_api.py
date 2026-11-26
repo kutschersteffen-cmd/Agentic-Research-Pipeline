@@ -119,3 +119,30 @@ def test_ac85_chat_list_holds_20(env):
     for _ in range(21):
         assert env.client.post("/api/desk/chats", json={}).status_code == 201
     assert len(env.client.get("/api/desk/chats").json()) == 20
+
+
+def _events(body):
+    return [(b.split("\n")[0].removeprefix("event: "), json.loads(b.split("\n")[1].removeprefix("data: ")))
+            for b in body.strip().split("\n\n")]
+
+
+def test_event_stream_of_a_done_turn(env):  # slice 2: AC-32's shape, and AC-35's owner rule
+    tid = env.ask(env.chat())
+    env.wait(tid)
+    r = env.client.get(f"/api/desk/turns/{tid}/events")
+    assert r.headers["content-type"].startswith("text/event-stream")
+    events = _events(r.text)
+    assert [e for e, _ in events] == ["stage"] * 6 + ["end"]
+    assert [d["name"] for _, d in events[:6]] == ["pick_sources", "split", "search", "rank", "write", "check"]
+    assert events[-1][1] == {"status": "done"}
+    app.dependency_overrides[current_user] = lambda: Principal(user_id="bob", name="bob", role="analyst")
+    r = env.client.get(f"/api/desk/turns/{tid}/events")
+    assert (r.status_code, r.json()["detail"]) == (404, "Turn not found")
+
+
+def test_event_stream_follows_a_running_turn(env):  # slice 2: AC-33
+    env.answer({**ANSWER, "delay_seconds": 2})
+    tid = env.ask(env.chat())
+    events = _events(env.client.get(f"/api/desk/turns/{tid}/events").text)
+    assert any(e == "stage" and d["status"] == "running" for e, d in events)
+    assert events[-1] == ("end", {"status": "done"})

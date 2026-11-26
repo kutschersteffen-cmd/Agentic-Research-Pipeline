@@ -1652,6 +1652,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/desk/turns/{turn_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Turn Events
+         * @description Server-sent events: every stage record, then each one that changes (polled every 0.5 s, no connection held
+         *     between polls), then `end` once the turn is no longer running.
+         */
+        get: operations["turn_events_api_desk_turns__turn_id__events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/discovery/events": {
         parameters: {
             query?: never;
@@ -24990,6 +25011,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DeskTurnOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    turn_events_api_desk_turns__turn_id__events_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                turn_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

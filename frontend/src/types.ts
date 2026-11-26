@@ -82,6 +82,21 @@ export type RefineTurnOut = Served<S["RefineTurnOut"]>;
 export type RefineThread = Served<S["RefineThread"]>;
 export type RefineDocument = Served<S["RefineDocument"]>;
 export type RefineHistoryItem = Served<S["RefineHistoryItem"]>;
+/** Research Desk (spec research-desk-wave1): chats, their scope, companies and turns under `/api/desk`. */
+export type DeskChatSummary = Served<S["DeskChatListItem"]>;
+export type DeskChat = Served<S["DeskChatOut"]>;
+export type DeskChatCreated = Served<S["DeskChatCreated"]>;
+export type DeskScopeItem = Served<S["DeskScopeItem"]>;
+export type DeskCompanies = Served<S["DeskCompanies"]>;
+export type DeskTurnStarted = Served<S["DeskTurnStarted"]>;
+export type DeskStage = Served<S["DeskStage"]>;
+export interface DeskSource { n: number; company_name: string | null; filename: string; text: string; scores: { bm25?: number; vector_rank?: number }; used: boolean }
+export interface DeskCitation { source: number; quote: string; grounded: boolean; page: number | null }
+export interface DeskSentence { n: number; text: string; status: "found" | "calculated" | "to_check"; citations: DeskCitation[]; calculation: string | null }
+export interface DeskCalculation { id: string; display: string | null; unit: string; formula: string | null; error: string | null }
+export interface DeskAnswer { sentences: DeskSentence[]; calculations: DeskCalculation[]; check: { found: number; calculated: number; to_check: number } }
+/** `GET /api/desk/turns/{id}`; the backend types `sources` and `answer` as plain dicts. */
+export type DeskTurn = Omit<Served<S["DeskTurnOut"]>, "sources" | "answer"> & { sources: DeskSource[]; answer: DeskAnswer | null };
 export type AskResponse = Served<S["AskResponse"]>;
 
 // The run types the Review Queue endpoints exist for -- a subset of every

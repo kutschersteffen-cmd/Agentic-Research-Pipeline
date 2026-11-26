@@ -55,6 +55,8 @@ const XbrlFacts = lazy(() => import("./pages/XbrlFacts").then((x) => ({ default:
 const DesignStrategy = lazy(() => import("./pages/DesignStrategy").then((x) => ({ default: x.DesignStrategy })));
 const ThemeDossiers = lazy(() => import("./pages/ThemeDossiers").then((x) => ({ default: x.ThemeDossiers })));
 const Agent = lazy(() => import("./pages/Agent").then((x) => ({ default: x.Agent })));
+const DeskStart = lazy(() => import("./pages/desk/DeskStart").then((x) => ({ default: x.DeskStart })));
+const DeskChat = lazy(() => import("./pages/desk/DeskChat").then((x) => ({ default: x.DeskChat })));
 const RfpAnswers = lazy(() => import("./pages/RfpAnswers").then((x) => ({ default: x.RfpAnswers })));
 
 const TABS = [
@@ -299,7 +301,8 @@ function App() {
         <Suspense fallback={<p className="muted" role="status">Loading…</p>}>
         {active === "home" && <StartPage />}
         {active === "argus" && route.params[0] === "new" && <ArgusNew preset={route.params[1] ?? null} />}
-        {active === "argus" && route.params[0] !== "new" && (route.params[0] ? <ArgusFlow key={route.params[0]} flowId={route.params[0]} step={stepFromUrl(route.params[1])} /> : <ArgusStart />)}
+        {active === "argus" && route.params[0] === "desk" && (route.params[1] ? <DeskChat key={route.params[1]} chatId={route.params[1]} /> : <DeskStart />)}
+        {active === "argus" && route.params[0] !== "new" && route.params[0] !== "desk" && (route.params[0] ? <ArgusFlow key={route.params[0]} flowId={route.params[0]} step={stepFromUrl(route.params[1])} /> : <ArgusStart />)}
         {isWorkspace(active) && active !== "argus" && !(active === "stewardiq" && route.params[0] === "cockpit") && <WorkspaceOverview key={active} id={active} onAsk={canAsk ? askAgent : undefined} />}
         {active === "stewardiq" && route.params[0] === "cockpit" && <StewardCockpit key={route.params[1] ?? "today"} asOf={route.params[1]} />}
         {active === "search" && <Search />}

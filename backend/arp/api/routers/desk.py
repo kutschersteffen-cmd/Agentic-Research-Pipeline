@@ -3,11 +3,14 @@ from the scope's stored reports (spec research-desk-wave1, slice 1). A chat is v
 
 from __future__ import annotations
 
+import asyncio
+import json
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
@@ -270,3 +273,33 @@ def get_turn(turn_id: int, user: Principal = Depends(_analyst)) -> dict:
         return {"id": t.id, "chat_id": t.chat_id, "question": t.question, "mode": t.mode, "status": t.status,
                 "error": t.error, "created_at": t.created_at, "finished_at": t.finished_at, "stages": t.stages or [],
                 "sources": t.sources or [], "answer": t.answer}
+
+
+def _turn_stages(turn_id: int, user: Principal) -> tuple[str, list[dict]]:
+    with transaction() as s:
+        t = s.get(m.DeskTurn, turn_id)
+        if t is None or s.get(m.DeskChat, t.chat_id).owner_id != user.user_id:
+            raise HTTPException(404, "Turn not found")
+        return t.status, t.stages or []
+
+
+@router.get("/turns/{turn_id}/events", response_class=StreamingResponse)
+def turn_events(turn_id: int, user: Principal = Depends(_analyst)) -> StreamingResponse:
+    """Server-sent events: every stage record, then each one that changes (polled every 0.5 s, no connection held
+    between polls), then `end` once the turn is no longer running."""
+    _turn_stages(turn_id, user)
+
+    async def stream():
+        sent: list[dict] = []
+        while True:
+            status, stages = _turn_stages(turn_id, user)
+            for i, stage in enumerate(stages):
+                if i >= len(sent) or sent[i] != stage:
+                    yield f"event: stage\ndata: {json.dumps(stage)}\n\n"
+            sent = stages
+            if status != "running":
+                yield f"event: end\ndata: {json.dumps({'status': status})}\n\n"
+                return
+            await asyncio.sleep(0.5)
+
+    return StreamingResponse(stream(), media_type="text/event-stream")
