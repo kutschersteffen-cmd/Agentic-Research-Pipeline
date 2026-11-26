@@ -27,6 +27,7 @@ backend/.gcp/
 # Runtime data (file-based storage) - keep folder structure, not contents
 runs/*
 !runs/.gitkeep
+scorecards/*
 schemas/*
 !schemas/.gitkeep
 taxonomies/*

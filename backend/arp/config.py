@@ -100,6 +100,7 @@ class Settings(BaseSettings):
     schema_registry_dir: Path = REPO_ROOT / "schemas"
     identifier_map_path: Path = REPO_ROOT / "data" / "identifier_map.jsonl"
     taxonomies_dir: Path = Field(default=REPO_ROOT / "taxonomies")
+    scorecards_dir: Path = Field(default=REPO_ROOT / "scorecards", description="Holdout reports of `arp golden-set theme`.")
     portfolios_dir: Path = Field(default=REPO_ROOT / "portfolios")
     qa_audit_path: Path | None = Field(default=None, description="Q&A audit log; defaults to portfolios_dir/qa_audit.jsonl.")
     projects_dir: Path = Field(default=REPO_ROOT / "projects")

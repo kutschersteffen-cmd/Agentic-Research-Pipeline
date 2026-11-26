@@ -462,3 +462,148 @@ def _choices(value: str | None, option: str, allowed: tuple[str, ...]) -> list[s
         typer.echo(f"{option} must be one of {', '.join(allowed)}", err=True)
         raise typer.Exit(2)
     return items
+
+
+_CONFIDENCE_BINS = ((0.9, 1.0), (0.7, 0.9), (0.5, 0.7), (0.0, 0.5))
+
+
+def _ratio(n: int, d: int) -> float | None:
+    return round(n / d, 3) if d else None
+
+
+def _shown(v: float | None) -> str:
+    return "n/a" if v is None else f"{v:.3f}"
+
+
+def _score_split(labels: list[str], rows: list[dict], grounded: int, citations: int) -> dict:
+    """One split's metrics over its per-case rows (spec theme-precision-scorecard, slice 1)."""
+    put_in = [r for r in rows if r["put_in"]]
+    bins = [{"low": low, "high": high, "calls": 0, "correct": 0, "rate": None} for low, high in _CONFIDENCE_BINS]
+    for r in rows:
+        if r["confidence"] is not None:
+            b = next(b for b in bins if r["confidence"] >= b["low"])
+            b["calls"] += 1
+            b["correct"] += r["correct"]
+    for b in bins:
+        b["rate"] = _ratio(b["correct"], b["calls"])
+    return {
+        "companies": len(rows),
+        "labels": {label: sum(r["label"] == label for r in rows) for label in labels},
+        "not_assessed": sum(not r["assessed"] for r in rows),
+        "put_in": len(put_in),
+        "precision": _ratio(sum(r["label"] != "not" for r in put_in), len(put_in)),
+        "recall_core": _ratio(sum(r["label"] == "core" for r in put_in), sum(r["label"] == "core" for r in rows)),
+        "recall_peripheral": _ratio(sum(r["label"] == "peripheral" for r in put_in),
+                                    sum(r["label"] == "peripheral" for r in rows)),
+        "quotes_found": _ratio(grounded, citations),
+        "confidence": bins,
+        "cases": rows,
+    }
+
+
+@golden_set_app.command("theme")
+def golden_set_theme(
+    set_name: str = typer.Option(..., "--set", help="Exposure set id under tests/golden/exposure/, or a directory holding cases.json."),
+    documents_dir: Path = typer.Option(None, "--documents-dir", help="Holds <case_id>/<doc_type>/<file> per case (default: the app's document sources)."),
+    taxonomy_id: str = typer.Option(None, "--taxonomy", help="Default: tax_<set_id>, latest, from <set dir>/taxonomies."),
+    taxonomy_version: int = typer.Option(None, "--taxonomy-version", help="Defaults to the latest version."),
+    taxonomies_dir: Path = typer.Option(None, "--taxonomies-dir", help="Taxonomy store directory for --taxonomy (default: configured)."),
+    split: str = typer.Option("both", "--split", help="tune, holdout or both."),
+    min_precision: float = typer.Option(None, "--min-precision", help="Exit 1 if holdout precision is below x."),
+    min_recall_core: float = typer.Option(None, "--min-recall-core", help="Exit 1 if holdout core recall is below x."),
+    out: Path = typer.Option(None, "--out", help="Write the JSON report."),
+) -> None:
+    """Scores the theme matching on an activity exposure golden set: precision, recall, quotes found in source and
+    confidence vs correct, per split. Writes no run; a run with the holdout split stores its report in scorecards_dir."""
+    from datetime import UTC, datetime
+
+    from arp.cli._shared import _registry
+    from arp.cli.theme import _CaseFiles
+    from arp.golden_set.exposure import load_set
+    from arp.ingestion.registry import DocumentSourceRegistry
+    from arp.research.pipeline import _match_company
+    from arp.schemas.common import CompanyRef
+    from arp.schemas.thematic import MatchVerdict
+    from arp.storage.taxonomy_store import TaxonomyStore
+
+    if split not in ("tune", "holdout", "both"):
+        typer.echo("--split must be one of tune, holdout, both", err=True)
+        raise typer.Exit(2)
+    set_dir = Path(__file__).resolve().parents[2] / "tests" / "golden" / "exposure" / set_name
+    if not (set_dir / "cases.json").exists():
+        set_dir = Path(set_name)
+    if not (set_dir / "cases.json").exists():
+        typer.echo(f"Golden set not found: {set_name}", err=True)
+        raise typer.Exit(1)
+    try:
+        golden = load_set(set_dir)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from None
+    if golden.kind == "risk":
+        typer.echo(f"Risk sets can't be scored yet: {golden.set_id}", err=True)
+        raise typer.Exit(1)
+    if split == "tune" and (min_precision is not None or min_recall_core is not None):
+        typer.echo("The gate needs the holdout split.", err=True)
+        raise typer.Exit(1)
+    settings = get_settings()
+    if taxonomy_id is None:
+        taxonomy_id = f"tax_{golden.set_id}"
+        taxonomy = TaxonomyStore(set_dir / "taxonomies").get(taxonomy_id)
+    else:
+        taxonomy = TaxonomyStore(taxonomies_dir or settings.taxonomies_dir).get(taxonomy_id, taxonomy_version)
+    if taxonomy is None:
+        typer.echo(f"Taxonomy not found: {taxonomy_id}", err=True)
+        raise typer.Exit(1)
+
+    splits = ["tune", "holdout"] if split == "both" else [split]
+    registry = DocumentSourceRegistry([_CaseFiles(documents_dir)]) if documents_dir is not None else _registry()
+
+    async def run() -> dict:
+        llm, verifier = build_llm_client(settings), build_verifier_llm_client(settings)
+        scored = {}
+        for name in splits:
+            rows, grounded, citations = [], 0, 0
+            for case in (c for c in golden.cases if c.split == name):
+                result = await _match_company(CompanyRef(company_id=case.case_id, name=case.company, isin=case.isin),
+                                              taxonomy.theme, registry=registry, llm=llm, verifier_llm=verifier,
+                                              settings=settings)
+                matches = result.matches
+                no_evidence = [m.advocate is not None and m.advocate.stance == "No evidence found" for m in matches]
+                assessed = not all(n and m.verdict == MatchVerdict.UNCERTAIN for n, m in zip(no_evidence, matches, strict=True))
+                adjudicated = [m for n, m in zip(no_evidence, matches, strict=True) if m.advocate is not None and not n]
+                deciding = max(adjudicated, key=lambda m: (m.verdict == MatchVerdict.INCLUDE, m.confidence), default=None)
+                included = [m for m in matches if m.verdict == MatchVerdict.INCLUDE]
+                grounded += sum(c.grounded for m in included for c in m.citations)
+                citations += sum(len(m.citations) for m in included)
+                rows.append({"case_id": case.case_id, "label": case.label, "assessed": assessed, "put_in": bool(included),
+                             "confidence": None if deciding is None else deciding.confidence,
+                             "correct": None if deciding is None else
+                             (deciding.verdict == MatchVerdict.INCLUDE) == (case.label != "not")})
+            scored[name] = _score_split(golden.labels, rows, grounded, citations)
+        return scored
+
+    scored = asyncio.run(run())
+    report = {"set_id": golden.set_id, "taxonomy_id": taxonomy.taxonomy_id, "taxonomy_version": taxonomy.version,
+              "created_at": datetime.now(UTC).isoformat(), "splits": scored}
+    for name, s in scored.items():
+        labels = ", ".join(f"{label} {n}" for label, n in s["labels"].items())
+        typer.echo(f"split: {name}\ncompanies: {s['companies']} ({labels})\nnot assessed: {s['not_assessed']}\n"
+                   f"put in: {s['put_in']}\nprecision: {_shown(s['precision'])}\nrecall core: {_shown(s['recall_core'])}\n"
+                   f"recall peripheral: {_shown(s['recall_peripheral'])}\nquotes found in source: {_shown(s['quotes_found'])}")
+        for b in s["confidence"]:
+            typer.echo(f"confidence {b['low']:.2f}-{b['high']:.2f}: calls {b['calls']}, correct {b['correct']}, rate {_shown(b['rate'])}")
+    if out is not None:
+        out.write_text(json.dumps(report, indent=2))
+    if "holdout" not in scored:
+        return
+    settings.scorecards_dir.mkdir(parents=True, exist_ok=True)
+    (settings.scorecards_dir / f"{taxonomy.taxonomy_id}_v{taxonomy.version}.json").write_text(json.dumps(report, indent=2))
+    failed = False
+    for label, value, minimum in (("precision", scored["holdout"]["precision"], min_precision),
+                                  ("recall core", scored["holdout"]["recall_core"], min_recall_core)):
+        if minimum is not None and (value is None or value < minimum):
+            typer.echo(f"Holdout {label} {_shown(value)} is below {minimum}.", err=True)
+            failed = True
+    if failed:
+        raise typer.Exit(1)

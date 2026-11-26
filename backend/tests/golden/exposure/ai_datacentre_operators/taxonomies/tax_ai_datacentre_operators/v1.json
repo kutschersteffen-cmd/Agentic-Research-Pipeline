@@ -1,0 +1,45 @@
+{
+  "taxonomy_id": "tax_ai_datacentre_operators",
+  "name": "AI data-centre operators",
+  "version": 1,
+  "theme": {
+    "theme_id": "theme_ai_datacentre_operators",
+    "name": "AI data-centre operators",
+    "description": "Golden-set taxonomy for tests/golden/exposure/ai_datacentre_operators.",
+    "activities": [
+      {
+        "activity_id": "act_ai_datacentre_operation",
+        "name": "AI data-centre operation",
+        "in_scope_description": "Owns or operates data centres that host AI training or inference workloads (GPU/accelerator capacity), as a material business",
+        "out_of_scope_description": "Supplies chips, servers, cooling or power to data centres that others own or operate; buys cloud capacity without owning or operating the data centres",
+        "seed_keywords": [
+          "data center",
+          "data centre",
+          "colocation",
+          "hyperscale",
+          "GPU",
+          "AI infrastructure"
+        ],
+        "core_isic_codes": [],
+        "source_citation": null,
+        "standards_mapping": null,
+        "tier": "core",
+        "lifecycle_stage": null,
+        "criticality_flag": false,
+        "contrast_statements": [
+          "The company supplies equipment, chips or power to data centres run by others.",
+          "The company rents cloud capacity from others."
+        ],
+        "human_approved": false
+      }
+    ],
+    "created_at": "2026-11-26T00:00:00Z"
+  },
+  "derivation_method": "manual",
+  "source_notes": "Hand-written for the theme precision scorecard (arp golden-set theme).",
+  "status": "draft",
+  "ratified_by": null,
+  "ratified_at": null,
+  "based_on_version": null,
+  "created_at": "2026-11-26T00:00:00+00:00"
+}
