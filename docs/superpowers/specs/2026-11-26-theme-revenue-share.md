@@ -4,7 +4,7 @@ Spec slug: `theme-revenue-share`. R&D Lab upgrade plan items 6 (reported segment
 with a range), approved by the owner 2026-11-25. First child spec of the B1 revenue sizing outline
 (`2026-11-01-phase-b-exposure-outline.md`).
 
-Status: draft for owner approval, 2026-11-26.
+Status: approved by owner 2026-11-26.
 
 ## Why
 
