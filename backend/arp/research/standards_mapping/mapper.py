@@ -9,6 +9,7 @@ from arp.config import Settings
 from arp.llm.base import LLMClient, LLMUsage
 from arp.research.indirect_exposure.core_sectors import classify_theme_core_sectors
 from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
+from arp.research.indirect_exposure.nace import nace2_to_isic4, sector_nace2_codes
 from arp.research.standards_mapping.crosswalk import CrosswalkTable, load_crosswalk
 from arp.research.standards_mapping.gics import GicsReferenceEntry, classify_gics, load_gics_reference
 from arp.schemas.standards import ActivityStandardsMapping
@@ -44,17 +45,20 @@ async def map_activity_standards(
     gics_reference: list[GicsReferenceEntry],
     llm: LLMClient,
 ) -> tuple[ActivityStandardsMapping, LLMUsage]:
-    nace, nace_unmapped = nace_table.lookup_many(activity.core_isic_codes)
-    naics, naics_unmapped = naics_table.lookup_many(activity.core_isic_codes)
-    sic, sic_unmapped = sic_table.lookup_many(activity.core_isic_codes)
+    # Sector -> NACE Rev.2 (exiobase_nace.csv) -> ISIC Rev.4 (UN table, every row) -> the ISIC-keyed crosswalks.
+    sector_isic = {s: sorted({i for n in sector_nace2_codes(s) for i in nace2_to_isic4(n)}) for s in activity.core_sectors}
+    isic_codes = sorted({i for codes in sector_isic.values() for i in codes})
+    nace, _ = nace_table.lookup_many(isic_codes)
+    naics, _ = naics_table.lookup_many(isic_codes)
+    sic, _ = sic_table.lookup_many(isic_codes)
     gics, usage = await classify_gics(activity, gics_reference, llm)
 
-    # Genuinely unmapped only if every loaded crosswalk missed it -- a code
+    # Genuinely unmapped only if every loaded crosswalk missed all its ISIC codes -- a sector
     # absent from an unconfigured/empty table isn't a real gap.
-    unmapped_sets = [set(u) for u, loaded in ((nace_unmapped, nace_table), (naics_unmapped, naics_table), (sic_unmapped, sic_table)) if loaded]
-    unmapped = [c for c in activity.core_isic_codes if all(c in s for s in unmapped_sets)] if unmapped_sets else []
+    loaded = [t for t in (nace_table, naics_table, sic_table) if t]
+    unmapped = [s for s in activity.core_sectors if all(not t.lookup_many(sector_isic[s])[0] for t in loaded)] if loaded else []
 
-    mapping = ActivityStandardsMapping(nace_codes=nace, naics_codes=naics, sic_codes=sic, gics=gics, unmapped_isic_codes=unmapped)
+    mapping = ActivityStandardsMapping(nace_codes=nace, naics_codes=naics, sic_codes=sic, gics=gics, unmapped_sectors=unmapped)
     return mapping, usage
 
 
@@ -69,9 +73,10 @@ async def map_theme_to_standards(
     """Populates standards_mapping (NACE/NAICS/SIC/GICS) on every activity
     in the theme.
 
-    Activities without core_isic_codes are classified against ISIC first
-    (reusing the indirect-exposure tier's classifier) since ISIC is the
-    join key the NACE/NAICS/SIC crosswalks key off of; this step is
+    Activities without core_sectors are classified against the EXIOBASE
+    sectors first (reusing the indirect-exposure tier's classifier), since
+    their ISIC codes are the join key the NACE/NAICS/SIC crosswalks key off
+    of; this step is
     skipped, not fatal, if no input-output model is configured/sampled --
     GICS still classifies directly from the activity's own description
     either way, and NACE/NAICS/SIC simply come back empty for those
@@ -80,8 +85,8 @@ async def map_theme_to_standards(
     total_usage = LLMUsage()
     model = await asyncio.to_thread(resolve_indirect_exposure_model, settings, use_sample=use_sample_io)
     if model is not None:
-        theme, isic_usage = await classify_theme_core_sectors(theme, model, llm)
-        total_usage = LLMUsage(input_tokens=isic_usage.input_tokens, output_tokens=isic_usage.output_tokens)
+        theme, sector_usage = await classify_theme_core_sectors(theme, model, llm)
+        total_usage = LLMUsage(input_tokens=sector_usage.input_tokens, output_tokens=sector_usage.output_tokens)
 
     nace_path = _resolve_table_path(settings.nace_crosswalk_path, "nace", use_sample_standards)
     naics_path = _resolve_table_path(settings.naics_crosswalk_path, "naics", use_sample_standards)
@@ -111,25 +116,25 @@ def format_standards_csv(theme: ThemeDefinition) -> str:
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow(
-        ["activity_id", "activity_name", "isic_codes", "nace_codes", "naics_codes", "sic_codes", "gics_codes", "gics_labels", "gics_rationale", "unmapped_isic_codes"]
+        ["activity_id", "activity_name", "core_sectors", "nace_codes", "naics_codes", "sic_codes", "gics_codes", "gics_labels", "gics_rationale", "unmapped_sectors"]
     )
     for activity in theme.activities:
         mapping = activity.standards_mapping
         if mapping is None:
-            writer.writerow([activity.activity_id, activity.name, ";".join(activity.core_isic_codes), "", "", "", "", "", "", ""])
+            writer.writerow([activity.activity_id, activity.name, ";".join(activity.core_sectors), "", "", "", "", "", "", ""])
             continue
         writer.writerow(
             [
                 activity.activity_id,
                 activity.name,
-                ";".join(activity.core_isic_codes),
+                ";".join(activity.core_sectors),
                 ";".join(m.code for m in mapping.nace_codes),
                 ";".join(m.code for m in mapping.naics_codes),
                 ";".join(m.code for m in mapping.sic_codes),
                 ";".join(m.code for m in mapping.gics),
                 ";".join(m.label for m in mapping.gics),
                 " | ".join(m.rationale for m in mapping.gics if m.rationale),
-                ";".join(mapping.unmapped_isic_codes),
+                ";".join(mapping.unmapped_sectors),
             ]
         )
     return buf.getvalue()

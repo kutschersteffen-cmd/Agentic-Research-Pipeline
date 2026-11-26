@@ -46,7 +46,7 @@ def _settings(tmp_path) -> Settings:
     )
 
 
-def _activity(lifecycle_stage=None, core_isic_codes=None) -> ActivityDefinition:
+def _activity(lifecycle_stage=None, core_sectors=None) -> ActivityDefinition:
     return ActivityDefinition(
         activity_id="act_ssb",
         name="Solid-state batteries",
@@ -54,7 +54,7 @@ def _activity(lifecycle_stage=None, core_isic_codes=None) -> ActivityDefinition:
         out_of_scope_description="",
         seed_keywords=["solid-state battery"],
         lifecycle_stage=lifecycle_stage,
-        core_isic_codes=core_isic_codes or [],
+        core_sectors=core_sectors or [],
     )
 
 
@@ -68,7 +68,7 @@ async def test_returns_none_when_lifecycle_stage_not_set(tmp_path, fake_llm):
     llm = fake_llm({})
     ctx = RDResolverContext(registry=DocumentSourceRegistry([]), settings=_settings(tmp_path), schema=SCHEMA)
     result, usage = await resolve_company_activity_rd_exposure(
-        company, _activity(lifecycle_stage=None), None, documents=[], ctx=ctx, llm=llm
+        company, _activity(lifecycle_stage=None), set(), documents=[], ctx=ctx, llm=llm
     )
     assert result is None
     assert usage.input_tokens == 0
@@ -80,7 +80,7 @@ async def test_returns_none_for_mature_activity(tmp_path, fake_llm):
     llm = fake_llm({})
     ctx = RDResolverContext(registry=DocumentSourceRegistry([]), settings=_settings(tmp_path), schema=SCHEMA)
     result, _usage = await resolve_company_activity_rd_exposure(
-        company, _activity(lifecycle_stage=LifecycleStage.MATURE), None, documents=[], ctx=ctx, llm=llm
+        company, _activity(lifecycle_stage=LifecycleStage.MATURE), set(), documents=[], ctx=ctx, llm=llm
     )
     assert result is None
     assert llm.calls == []
@@ -94,12 +94,12 @@ async def test_resolves_for_ideation_stage_activity(tmp_path, fake_llm):
     ctx = RDResolverContext(registry=registry, settings=_settings(tmp_path), schema=SCHEMA)
 
     result, _usage = await resolve_company_activity_rd_exposure(
-        company, _activity(lifecycle_stage=LifecycleStage.IDEATION), None, documents=[doc], ctx=ctx, llm=llm
+        company, _activity(lifecycle_stage=LifecycleStage.IDEATION), set(), documents=[doc], ctx=ctx, llm=llm
     )
     assert result is not None
     assert result.rd_intensity.source == "unresolved"
     assert result.news_mentions.source == "unresolved"
-    assert result.sector_relevant is True  # no company_isic/core_isic_codes -> defaults relevant
+    assert result.sector_relevant is True  # no company sectors/core_sectors -> defaults relevant
 
 
 # --- resolve_company_activity_rd_exposure: sector-relevance gate ------------
@@ -108,11 +108,12 @@ async def test_irrelevant_sector_skips_rd_intensity_extraction(tmp_path, fake_ll
     company = CompanyRef(company_id="c1", name="Acme Retail")
     doc = SourceDocument(company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="10-K", full_text="We are investing heavily in solid-state batteries.")
     registry = DocumentSourceRegistry([_FixedDocSource([doc])])
-    llm = fake_llm({})  # company_isic="45" (retail) doesn't overlap "27" -- extraction must be skipped
+    llm = fake_llm({})  # a retail company doesn't overlap electrical machinery -- extraction must be skipped
     ctx = RDResolverContext(registry=registry, settings=_settings(tmp_path), schema=SCHEMA)
 
     result, _usage = await resolve_company_activity_rd_exposure(
-        company, _activity(lifecycle_stage=LifecycleStage.IDEATION, core_isic_codes=["27"]), "45", documents=[doc], ctx=ctx, llm=llm
+        company, _activity(lifecycle_stage=LifecycleStage.IDEATION, core_sectors=["Manufacture of electrical machinery and apparatus n.e.c."]),
+        {"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods"}, documents=[doc], ctx=ctx, llm=llm
     )
     assert result.sector_relevant is False
     assert result.rd_intensity.source == "unresolved"

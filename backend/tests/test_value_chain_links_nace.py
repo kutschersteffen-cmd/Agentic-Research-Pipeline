@@ -7,6 +7,7 @@ from arp.api.deps import get_portfolio_store
 from arp.api.main import app
 from arp.cli import app as cli_app
 from arp.holdings import security_master
+from arp.research.indirect_exposure.migrate import icio_sectors
 from arp.research.value_chain.links import company_nace
 from arp.schemas.common import CompanyRef
 from arp.schemas.portfolio import Holding, Portfolio, SecurityRef
@@ -18,7 +19,7 @@ from tests.test_value_chain_links import BASE, nodes, runner
 
 ISINS = ["US0378331005", "DE0007164600", "US5949181045"]
 HEADER = ",".join(security_master.COLUMNS)
-NS_SPLIT = {"kind": "split", "parts": [{"icio_code": "B07", "share": 1}]}
+NS_SPLIT = {"kind": "split", "parts": [{"sectors": icio_sectors("B07"), "share": 1}]}
 N = {
     "nc": {"country": "CN", "nace_code": "07.29"},
     "nw": {"country": "DE", "nace_code": "35.11"},
@@ -92,7 +93,8 @@ def test_company_nace_routes():
     assert company_nace(ref(nace_code="35.12", nace_rev="2.1")) == ("nace21", "35.12", "2.1")
     assert company_nace(ref(nace_code="27.11", isic_code="2710")) == ("nace2", "27.11", "2")
     assert company_nace(ref(isic_code="2710")) == ("isic4", "2710", "2")
-    assert company_nace(ref(isic_code="C27")) is None  # ICIO code: stays on the `code` route
+    assert company_nace(ref(isic_code="C27")) is None  # an old ICIO code: no NACE route (AC-33)
+    assert company_nace(ref(isic_code="07")) == ("isic4", "07", "2")  # a 2-digit ISIC division (AC-32)
     assert company_nace(ref(gics_code="20104010")) is None
 
 

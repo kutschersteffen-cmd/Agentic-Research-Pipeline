@@ -96,6 +96,7 @@ from arp.db.session import require_cutover, require_postgres
 from arp.errors import ClientInputError, NotConfigured
 from arp.refine.turns import reap_stale_turns
 from arp.research_desk.turn import reap_stale_desk_turns
+from arp.schemas.thematic import OLD_FORMAT_MESSAGE
 from arp.stewardship.universe import wait_for_fill
 from arp.transition_alignment.benchmarks import check_benchmarks
 from arp.transition_barrier.dataset import check_rule_book
@@ -270,6 +271,15 @@ async def runtime_error_handler(request: Request, exc: NotConfigured) -> JSONRes
 @app.exception_handler(ClientInputError)
 async def client_input_error_handler(request: Request, exc: ClientInputError) -> JSONResponse:
     return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+
+@app.exception_handler(ValueError)
+async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse:
+    # An unmigrated core_isic_codes theme is 422 (spec 2026-11-04 decision 8) on every load path;
+    # any other bare ValueError stays a server fault.
+    if OLD_FORMAT_MESSAGE in str(exc):
+        return JSONResponse(status_code=422, content={"detail": str(exc)})
+    return await server_error_handler(request, exc)
 
 
 @app.exception_handler(RequestValidationError)

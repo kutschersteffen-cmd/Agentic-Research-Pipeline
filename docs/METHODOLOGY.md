@@ -52,7 +52,7 @@ is rarely binary, and collapsing it to a boolean discards information a
 portfolio manager needs.
 
 **[EXIOBASE 3](https://www.exiobase.eu/) input-output tables** (163
-sectors x 49 regions, labelled by the 50 OECD ICIO 2025 industry codes). The Advocate/Opposing/Adjudicator debate above
+sectors x 49 regions, each sector named by its full EXIOBASE name). The Advocate/Opposing/Adjudicator debate above
 answers "does this company's own disclosed activity fall in scope" — it has
 nothing to say about a company that is structurally entangled with a theme
 through its supply chain but never mentions the theme in its own words (a
@@ -343,22 +343,21 @@ Unset, the tier is off; set to a directory without a build, a run fails with
 Only nodes with output take part in the arithmetic. `L` is copied into
 memory once per process and build (about 0.5 GB for the real table).
 
-**Codes stay ICIO codes.** Companies (`isic_code`) and activities
-(`core_isic_codes`) keep the 50 OECD ICIO 2025 codes of
-`reference/icio2025_industries.csv`, plus the five electricity split codes
-(`D_GEN_FOS`, `D_GEN_NUC`, `D_GEN_REN`, `D_TD`, `D_GAS`). A code covers the
-EXIOBASE sectors `reference/exiobase_ixi_to_icio2025.csv` maps to it
-(`icio_code`, or `split_code` for a split code). Classification prompts
-offer only the 50 ICIO codes; split codes count when supplied (theme files,
-a company's `isic_code`, a NACE class such as `35.12`).
+**Sectors are EXIOBASE sector names.** An activity's `core_sectors` lists
+EXIOBASE sector names, e.g. `Mining of copper ores and concentrates`. There
+are no short codes. A company gets its sectors from its NACE code, or from
+its ISIC Rev.4 code read through the NACE table
+(`reference/exiobase_nace.csv`). A company with neither gets one sector
+name picked by the model. Classification prompts offer only the 163 sector
+names.
 
-**From codes to nodes (output-weighted).** A company is the set of nodes its
-code covers in the EXIOBASE region of its `country`
+**From sectors to nodes (output-weighted).** A company is the set of nodes
+of its sectors in the EXIOBASE region of its `country`
 (`reference/country_exiobase_region.csv`: every ISO alpha-2/alpha-3 code;
 countries outside EXIOBASE's 44 fall into the rest-of-world regions `WA`,
 `WE`, `WF`, `WL`, `WM`), or in every region when the country is unknown or
 its region not in the build, weighted by output: `w_k = x_k / Σ x`. The core
-is every node a core code covers, in every region. With the composite column
+is every node of a core sector, in every region. With the composite column
 `c = L[:, K] · w` and row `r = wᵀ · L[K, :]`:
 - `upstream_exposure = Σ_core c / Σ c`, `downstream_exposure = Σ_core r / Σ r`.
 - `end_market`: `d = r · Yg` with final demand summed into households
@@ -378,17 +377,26 @@ setting of the retired 50-industry path (`ARP_ICIO_*`, `ARP_EXIOBASE_*`,
 `ARP_IO_SOURCE`) still in the environment. Stored runs keep the numbers and
 `icio_edition` they were computed with.
 
+**Old data is migrated once.** Themes, taxonomies and link rules saved
+before the switch carry ICIO codes (`core_isic_codes`, `icio_code` link
+parts). Loading such a theme fails with a message naming the fix.
+`arp io migrate-exiobase` rewrites every taxonomy version and link rule in
+place; `--file` converts one theme file. An ICIO code becomes the EXIOBASE
+sectors `exiobase_ixi_to_icio2025.csv` maps to it. A digit-only code (an
+old hand-supplied ISIC Rev.4 code) goes through the NACE table. Five ICIO
+codes match no sector and become an empty list. Any other unknown code
+stops the command before it writes anything.
+
 **Two classification steps sit around the math**, both designed to be cheap
 because they're one-time, not per-company: `core_sectors.py` maps a theme's
-activities to the model's ICIO codes (one LLM call per activity, or
+activities to the model's EXIOBASE sectors (one LLM call per activity, or
 zero if supplied by hand via `arp theme classify-sectors`), and
-`company_mapper.py` maps a company to its ICIO code (supplied directly on
-the company universe file is the precise, zero-cost path; an ISIC division
-or NACE class that matches exactly one code next; an LLM fallback
-against the model's fixed, closed industry list otherwise). Both reject a
-code the model doesn't actually contain rather than silently coercing it,
-since a wrong industry code would corrupt every exposure number computed
-from it.
+`company_mapper.py` maps a company to a sector (a NACE or ISIC code on the
+company universe file is the precise, zero-cost path; an LLM fallback
+against the model's fixed, closed sector list otherwise). Both drop a
+sector name the model doesn't actually contain rather than silently
+coercing it, since a wrong sector would corrupt every exposure number
+computed from it.
 
 **Criticality overlay.** `criticality.py` bundles a small, hand-curated
 subset of commodities from the current USGS 2025 List of Critical Minerals
@@ -449,9 +457,10 @@ everywhere else in this system: reported plainly, never estimated.
 
 **Path 2 is gated by sector relevance, as a cost control.** Before spending
 an extraction call, `resolver.py::is_sector_relevant` checks whether the
-company's own resolved ISIC code (reusing `indirect_exposure/
-company_mapper.py::resolve_company_isic`) plausibly overlaps the activity's
-`core_isic_codes`, by digit-prefix containment. This only gates path 2 —
+company's own sectors (from its NACE or ISIC code, else the one
+`indirect_exposure/company_mapper.py::resolve_company_sector` picks) overlap
+the activity's `core_sectors`. No company sectors, or no `core_sectors`,
+counts as relevant. This only gates path 2 —
 path 1 (a free dict lookup) and the path-3 fallback (today's existing,
 unchanged recall behavior) are unaffected, since a company outside an
 activity's obvious sector can still have a real, disclosed revenue line
@@ -783,9 +792,9 @@ needs more reliable results than a free HTML-scrape search provides.
    description in, MECE activities out. Fast, flexible, but the boundary
    the model draws is only as good as its own background knowledge.
 2. **`industry_anchored`** — the same drafting call, grounded against a
-   real, closed industry reference list (today: the ISIC codes from a
-   loaded input-output model) instead of letting the model invent
-   categories freely. Populates `core_isic_codes` directly where a clean
+   real, closed industry reference list (today: the 163 EXIOBASE sector
+   names) instead of letting the model invent
+   categories freely. Populates `core_sectors` directly where a clean
    match exists and leaves it empty otherwise, so the result is
    immediately usable by the indirect-exposure tier with no separate
    `classify-sectors` pass.
@@ -894,7 +903,7 @@ taxonomy" are always separated by an explicit human review-and-save step.
 
 ### Cross-referencing to NACE, NAICS, SIC and GICS
 
-Once a taxonomy's activities carry `core_isic_codes` (from `industry_anchored`
+Once a taxonomy's activities carry `core_sectors` (from `industry_anchored`
 derivation, or `arp theme classify-sectors`), `arp taxonomy map-standards` /
 `POST /api/taxonomies/{id}/map-standards` cross-references each activity into
 four widely-used external classification standards and saves the result as a
@@ -905,8 +914,12 @@ use (fund mandates, regulatory reporting, index construction).
 The four standards are **not** all handled the same way, deliberately:
 
 - **NACE Rev.2, NAICS, SIC** are derived by a **deterministic crosswalk**
-  from `core_isic_codes` (`standards_mapping/crosswalk.py::CrosswalkTable`),
-  never guessed by the model. NACE Rev.2 aligns almost exactly with ISIC
+  from `core_sectors` (`standards_mapping/crosswalk.py::CrosswalkTable`),
+  never guessed by the model. Each sector goes to its NACE Rev.2 codes (the
+  reverse of `reference/exiobase_nace.csv`), then to ISIC Rev.4 through the
+  UN NACE-ISIC table (every matching row), then through the ISIC-keyed
+  tables below. Sectors no loaded table matches are listed in
+  `unmapped_sectors`. NACE Rev.2 aligns almost exactly with ISIC
   Rev.4 at the 2-digit division level by design (same codes, near-identical
   titles), so the bundled sample crosswalk is a close correspondence, not
   just illustrative; NAICS and SIC don't align numerically with ISIC at all,
@@ -940,8 +953,8 @@ real NACE table but no GICS license is normal; that standard just comes
 back empty for every activity rather than blocking the other three.
 `arp taxonomy export-standards` / `GET /api/taxonomies/{id}/standards.csv`
 flattens the result into one CSV row per activity
-(`activity_id, activity_name, isic_codes, nace_codes, naics_codes,
-sic_codes, gics_codes, gics_labels, gics_rationale, unmapped_isic_codes`)
+(`activity_id, activity_name, core_sectors, nace_codes, naics_codes,
+sic_codes, gics_codes, gics_labels, gics_rationale, unmapped_sectors`)
 for use outside the tool.
 
 ## Hybrid retrieval

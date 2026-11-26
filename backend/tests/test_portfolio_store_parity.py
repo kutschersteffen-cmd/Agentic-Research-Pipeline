@@ -215,7 +215,7 @@ def test_company_round_trip(store):
 def test_link_rule_round_trip_replace_and_delete(store):
     from arp.schemas.value_chain import LinkRule
 
-    split = LinkRule(kind="split", parts=[{"icio_code": "C27", "share": 0.5}, {"icio_code": "B07", "share": 0.5}],
+    split = LinkRule(kind="split", parts=[{"sectors": ["Copper production"], "share": 0.5}, {"sectors": ["Cultivation of wheat", "Cattle farming"], "share": 0.5}],
                      set_by="ana", set_at="2026-10-27T10:00:00Z")
     nodes = LinkRule(kind="nodes", parts=[{"region": "WA", "sector": "Wind", "share": 1.0}], set_by="ana",
                      set_at="2026-10-27T11:00:00Z")

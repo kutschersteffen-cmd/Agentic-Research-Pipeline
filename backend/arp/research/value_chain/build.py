@@ -12,6 +12,7 @@ from pathlib import Path
 import numpy as np
 
 from arp.research.indirect_exposure.io_import import EXIOBASE_FD, _lines, _read_reference
+from arp.research.indirect_exposure.nace import _sector_rows
 
 # Full-resolution EXIOBASE build for the Value Chain Explorer: every region x sector
 # is one node. See docs/superpowers/specs/2026-10-24-value-chain-explorer-design.md.
@@ -41,7 +42,7 @@ def _need(zf: zipfile.ZipFile, name: str) -> str:
     return name
 
 
-def _read_nodes(zf: zipfile.ZipFile, crosswalk: dict[str, str]) -> tuple[list[tuple[str, str]], np.ndarray]:
+def _read_nodes(zf: zipfile.ZipFile, goods: dict[str, bool]) -> tuple[list[tuple[str, str]], np.ndarray]:
     lines = _lines(zf, _need(zf, "x.txt"))
     header = next(lines)
     try:
@@ -54,8 +55,8 @@ def _read_nodes(zf: zipfile.ZipFile, crosswalk: dict[str, str]) -> tuple[list[tu
         if len(cells) <= max(ri, si, vi):
             continue
         sector = cells[si]
-        if sector not in crosswalk:
-            raise ValueError(f"EXIOBASE sector not in crosswalk: {sector}")
+        if sector not in goods:
+            raise ValueError(f"EXIOBASE sector not in exiobase_nace.csv: {sector}")
         keys.append((cells[ri], sector))
         values.append(cells[vi])
     if len(set(keys)) != len(keys):
@@ -186,7 +187,10 @@ def build_full(zip_path: Path, out: Path, label: str | None = None) -> list[str]
         raise ValueError(f"{out} is the current directory or a parent of it")
     if out.exists() and not (out.is_dir() and (not any(out.iterdir()) or (out / "manifest.json").is_file())):
         raise ValueError(f"{out} is not empty and is not a build-full output")
-    crosswalk = {r["exiobase_sector"]: r["icio_code"] for r in _read_reference("exiobase_ixi_to_icio2025.csv")}
+    goods: dict[str, bool] = {}  # raw sector -> any NACE Rev.2 code in sections A-E (divisions 01-39)
+    for r in _sector_rows():
+        code = r["nace2_code"]
+        goods[r["exiobase_sector"]] = goods.get(r["exiobase_sector"], False) or bool(code) and code[:2] <= "39"
     gwp = {r["stressor"]: float(r["factor"]) for r in _read_reference("ghg_gwp100.csv")}
     with zipfile.ZipFile(zip_path) as zf:
         try:
@@ -195,7 +199,7 @@ def build_full(zip_path: Path, out: Path, label: str | None = None) -> list[str]
             version = str(meta["version"])
         except (ValueError, KeyError, AttributeError, TypeError):
             raise ValueError("metadata.json: needs name EXIO_IOT_<year>_ixi and version") from None
-        keys, x = _read_nodes(zf, crosswalk)
+        keys, x = _read_nodes(zf, goods)
         index = {k: i for i, k in enumerate(keys)}
         z = _read_z(zf, index)
         intensities = [
@@ -247,7 +251,7 @@ def build_full(zip_path: Path, out: Path, label: str | None = None) -> list[str]
             for i, (region, sector) in enumerate(keys):
                 sector_no[region] = no = sector_no.get(region, 0) + 1
                 w.writerow([
-                    f"{region}.{no}", region, sector, no, repr(float(x[i])), str(crosswalk[sector][0] in "ABCDE").lower(),
+                    f"{region}.{no}", region, sector, no, repr(float(x[i])), str(goods[sector]).lower(),
                     *(col[i] for col in intensities),
                 ])
         sha = hashlib.sha256()

@@ -15,7 +15,7 @@ class CatalogueDataPoint(BaseModel):
     (e.g. a vendor's revenue-by-product-line feed) -- the "path 1" hard-
     number source. Nothing here is fetched or fabricated by this system;
     the catalogue is always user-supplied, same as every other external
-    dataset this codebase integrates (OECD ICIO, NACE/NAICS/SIC crosswalks,
+    dataset this codebase integrates (EXIOBASE, NACE/NAICS/SIC crosswalks,
     fund holdings).
     """
 
@@ -73,5 +73,5 @@ class RevenueExposureResult(BaseModel):
     capex: MetricExposure
     opex: MetricExposure = Field(default_factory=MetricExposure, description="Extraction only: OpEx has no catalogue mapping.")
     sector_relevant: bool = Field(
-        description="Whether the company's resolved ISIC code plausibly overlaps this activity's core_isic_codes -- gates whether path 2 (extraction) was attempted."
+        description="Whether the company's EXIOBASE sectors overlap this activity's core_sectors -- gates whether path 2 (extraction) was attempted."
     )

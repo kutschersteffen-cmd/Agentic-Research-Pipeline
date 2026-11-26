@@ -6,20 +6,11 @@ import zipfile
 from functools import cache
 from pathlib import Path
 
-# Reference data shared by `arp io build-full` and the indirect-exposure tier: the ICIO code
-# list, the EXIOBASE sector crosswalk, final-demand categories and region groups.
+# Reference data shared by `arp io build-full` and the indirect-exposure tier: the EXIOBASE
+# sector table, final-demand categories and region groups.
 
 REFERENCE_DIR = Path(__file__).resolve().parent / "reference"
 FD_GROUPS = ("households", "government", "investment", "inventories")
-
-# The five electricity split codes, after the 50 ICIO codes (spec 2026-10-26 Scope 2).
-SPLIT_INDUSTRIES = (
-    ("D_GEN_FOS", "Electricity generation from fossil fuels", "35", "35.11"),
-    ("D_GEN_NUC", "Electricity generation from nuclear", "35", "35.11"),
-    ("D_GEN_REN", "Electricity generation from renewables", "35", "35.11"),
-    ("D_TD", "Electricity transmission and distribution", "35", "35.12;35.13;35.14"),
-    ("D_GAS", "Gas distribution and steam supply", "35", "35.21;35.22;35.23;35.30"),
-)
 
 # EXIOBASE final-demand category -> index into FD_GROUPS; None: not final demand of any region.
 EXIOBASE_FD = {

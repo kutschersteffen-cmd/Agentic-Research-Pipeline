@@ -7701,7 +7701,7 @@ export interface paths {
         put?: never;
         /**
          * Map Standards
-         * @description Cross-references every activity's core_isic_codes into NACE, NAICS,
+         * @description Cross-references every activity's core_sectors into NACE, NAICS,
          *     SIC (deterministic crosswalk) and GICS (closed-list LLM classification)
          *     and saves the result as a new taxonomy version. See
          *     docs/METHODOLOGY.md for why GICS alone needs an LLM call.
@@ -8665,10 +8665,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Icio Codes
-         * @description The ICIO codes a revenue split may name: the 50 industries, then the five electricity split codes.
+         * Sector List
+         * @description The EXIOBASE sectors a revenue split may name, in exiobase_nace.csv order.
          */
-        get: operations["icio_codes_api_value_chain_codes_get"];
+        get: operations["sector_list_api_value_chain_codes_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -9524,10 +9524,10 @@ export interface components {
              */
             contrast_statements?: string[];
             /**
-             * Core Isic Codes
-             * @description ISIC Rev.4 industry codes that make up this activity's core value-chain sectors, used for input-output-based indirect exposure scoring. Empty means the indirect-exposure tier is skipped for this activity. Populate via `arp theme classify-sectors` or supply by hand.
+             * Core Sectors
+             * @description EXIOBASE sector names that make up this activity's core value-chain sectors, used for input-output-based indirect exposure scoring. Empty means the indirect-exposure tier is skipped for this activity. Populate via `arp theme classify-sectors` or supply by hand.
              */
-            core_isic_codes?: string[];
+            core_sectors?: string[];
             /** Criteria */
             criteria?: components["schemas"]["ActivityCriterion"][];
             /**
@@ -9610,7 +9610,7 @@ export interface components {
         /**
          * ActivityStandardsMapping
          * @description An activity's cross-reference into external industry classification
-         *     standards, derived from its core_isic_codes.
+         *     standards, derived from its core_sectors.
          */
         ActivityStandardsMapping: {
             /** Gics */
@@ -9622,10 +9622,10 @@ export interface components {
             /** Sic Codes */
             sic_codes?: components["schemas"]["StandardCodeMatch"][];
             /**
-             * Unmapped Isic Codes
-             * @description core_isic_codes with no entry in any loaded crosswalk table -- shown for transparency rather than silently dropped.
+             * Unmapped Sectors
+             * @description core_sectors with no entry in any loaded crosswalk table -- shown for transparency rather than silently dropped.
              */
-            unmapped_isic_codes?: string[];
+            unmapped_sectors?: string[];
         };
         /**
          * ActivityTier
@@ -15026,13 +15026,6 @@ export interface components {
             /** T Nw */
             t_nw: number | null;
         };
-        /** IcioCode */
-        IcioCode: {
-            /** Code */
-            code: string;
-            /** Label */
-            label: string;
-        };
         /** IdentifierOut */
         IdentifierOut: {
             /** Scheme */
@@ -15618,7 +15611,7 @@ export interface components {
         /**
          * LinkRule
          * @description An analyst's (or Scope 6's LLM) link of a company or taxonomy activity to value-chain nodes, stored as
-         *     ICIO codes or region + sector names, never node ids. docs/superpowers/specs/2026-10-27-value-chain-links-overlays-design.md
+         *     EXIOBASE sector names or region + sector names, never node ids. docs/superpowers/specs/2026-10-27-value-chain-links-overlays-design.md
          */
         LinkRule: {
             /**
@@ -15628,7 +15621,7 @@ export interface components {
             kind: "split" | "nodes" | "llm";
             /**
              * Parts
-             * @description split/llm: [{icio_code, share}]; nodes: [{region, sector, share}].
+             * @description split/llm: [{sectors, share}]; nodes: [{region, sector, share}].
              */
             parts: {
                 [key: string]: unknown;
@@ -15647,7 +15640,7 @@ export interface components {
             kind: "split" | "nodes";
             /**
              * Parts
-             * @description split: [{icio_code, share}]; nodes: [{region, sector, share}]; shares sum to 1.
+             * @description split: [{sectors, share}]; nodes: [{region, sector, share}]; shares sum to 1.
              */
             parts: {
                 [key: string]: unknown;
@@ -16612,7 +16605,7 @@ export interface components {
              * Link Source
              * @enum {string}
              */
-            link_source: "nodes" | "split" | "nace" | "code" | "llm" | "none";
+            link_source: "nodes" | "split" | "nace" | "llm" | "none";
             /** Market Value Eur */
             market_value_eur: number;
             /** Name */
@@ -19077,6 +19070,11 @@ export interface components {
             /** Title */
             title: string;
         };
+        /** Sector */
+        Sector: {
+            /** Name */
+            name: string;
+        };
         /** SectorBenchmarksOut */
         SectorBenchmarksOut: {
             capex: components["schemas"]["BenchmarkOut"];
@@ -19599,7 +19597,7 @@ export interface components {
         /**
          * StandardCodeMatch
          * @description One code from an external classification standard, derived via a
-         *     deterministic crosswalk from an activity's core_isic_codes -- never
+         *     deterministic crosswalk from an activity's core_sectors -- never
          *     LLM-guessed, since these are large fixed code lists a model can't be
          *     trusted to recall exactly.
          */
@@ -20774,6 +20772,7 @@ export interface components {
             rule: components["schemas"]["LinkRule"] | null;
             /**
              * Source
+             * @description code: an activity linked through its core_sectors.
              * @enum {string}
              */
             source: "nodes" | "split" | "nace" | "code" | "llm" | "none";
@@ -37912,7 +37911,7 @@ export interface operations {
             };
         };
     };
-    icio_codes_api_value_chain_codes_get: {
+    sector_list_api_value_chain_codes_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -37927,7 +37926,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["IcioCode"][];
+                    "application/json": components["schemas"]["Sector"][];
                 };
             };
         };

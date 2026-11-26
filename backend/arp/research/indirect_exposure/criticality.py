@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from arp.research.indirect_exposure.nace import division_sectors
+from arp.research.value_chain.model import sector_name
 from arp.schemas.thematic import ActivityDefinition, ThemeDefinition
 
 _USGS_2025 = "USGS 2025 List of Critical Minerals (Federal Register 2025-19813, published 2025-11-07)"
@@ -27,7 +29,7 @@ class CriticalMineral:
 
 
 # A small, hand-curated subset centered on the electrification/battery
-# value chain the bundled ICIO/EXIOBASE sample datasets already model
+# value chain the bundled EXIOBASE sample dataset already models
 # (see sample_data/), not the full USGS 60-commodity list. Commodity
 # inclusion verified against the current official list at time of writing;
 # ISIC codes are this module's own categorization -- see CriticalMineral's
@@ -95,18 +97,23 @@ def critical_isic_codes() -> set[str]:
     return {code for mineral in _CRITICAL_MINERALS for code in mineral.isic_codes}
 
 
+def critical_sectors() -> set[str]:
+    """The EXIOBASE sectors of the registry's ISIC divisions (read as NACE Rev.2 divisions)."""
+    return {sector_name(s) for d in critical_isic_codes() for s in division_sectors(d)}
+
+
 def apply_criticality_overlay(theme: ThemeDefinition) -> ThemeDefinition:
-    """Sets criticality_flag=True on every activity whose core_isic_codes
-    intersects the bundled registry's ISIC set. Pure and deterministic, no
+    """Sets criticality_flag=True on every activity whose core_sectors
+    intersect critical_sectors(). Pure and deterministic, no
     LLM call -- intended to run as an explicit extra step immediately after
-    classify_theme_core_sectors (which populates core_isic_codes), not
+    classify_theme_core_sectors (which populates core_sectors), not
     folded into it, since this is a fixed-lookup concern independent of
-    that LLM classification. An activity with no core_isic_codes yet is
+    that LLM classification. An activity with no core_sectors yet is
     left unflagged rather than erroring.
     """
-    critical_codes = critical_isic_codes()
+    critical = critical_sectors()
     new_activities: list[ActivityDefinition] = [
-        activity.model_copy(update={"criticality_flag": bool(critical_codes.intersection(activity.core_isic_codes))})
+        activity.model_copy(update={"criticality_flag": bool(critical.intersection(activity.core_sectors))})
         for activity in theme.activities
     ]
     return theme.model_copy(update={"activities": new_activities})

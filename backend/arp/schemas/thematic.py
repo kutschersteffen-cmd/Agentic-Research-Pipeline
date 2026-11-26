@@ -15,6 +15,9 @@ from arp.schemas.revenue_exposure import RevenueExposureResult
 from arp.schemas.standards import ActivityStandardsMapping
 
 _MIN_APPROVED_RATIONALE_WORDS = 15
+OLD_FORMAT_MESSAGE = (
+    "core_isic_codes (ICIO) is no longer supported; run arp io migrate-exiobase --file <theme.json> to convert it"
+)
 
 
 class ActivityTier(StrEnum):
@@ -69,10 +72,10 @@ class ActivityDefinition(BaseModel):
     contextual_keywords: list[str] = []
     exclusion_keywords: list[str] = []
     contextual_window_words: int = 50
-    core_isic_codes: list[str] = Field(
+    core_sectors: list[str] = Field(
         default_factory=list,
         description=(
-            "ISIC Rev.4 industry codes that make up this activity's core value-chain sectors, used for "
+            "EXIOBASE sector names that make up this activity's core value-chain sectors, used for "
             "input-output-based indirect exposure scoring. Empty means the indirect-exposure tier is skipped "
             "for this activity. Populate via `arp theme classify-sectors` or supply by hand."
         ),
@@ -115,6 +118,13 @@ class ActivityDefinition(BaseModel):
     citations: list[SourceCitation] = Field(default_factory=list)
     out_of_scope_citations: list[SourceCitation] = Field(default_factory=list)
     sector_codes: list[SectorCode] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_old_format(cls, data):
+        if isinstance(data, dict) and "core_isic_codes" in data:
+            raise ValueError(OLD_FORMAT_MESSAGE)
+        return data
 
     @model_validator(mode="after")
     def _approved_activities_must_be_sourced(self) -> ActivityDefinition:

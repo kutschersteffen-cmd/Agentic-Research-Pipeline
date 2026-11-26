@@ -26,6 +26,6 @@ class RDExposureResult(BaseModel):
         description="Web-search-based recent-momentum signal for this company x activity pair."
     )
     sector_relevant: bool = Field(
-        description="Whether the company's resolved ISIC code plausibly overlaps this activity's "
-        "core_isic_codes -- gates whether rd_intensity extraction was attempted."
+        description="Whether the company's EXIOBASE sectors overlap this activity's "
+        "core_sectors -- gates whether rd_intensity extraction was attempted."
     )

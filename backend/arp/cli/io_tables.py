@@ -88,7 +88,7 @@ def _set_by() -> str:
 
 
 @links_app.command("import")
-def links_import(csv_file: Path = typer.Argument(..., exists=True, dir_okay=False, help="Header company_id,icio_code,share.")) -> None:
+def links_import(csv_file: Path = typer.Argument(..., exists=True, dir_okay=False, help="Header company_id,sector,share; one row per sector.")) -> None:
     """Saves one revenue split per company from the CSV rows; prints one line per rejected company."""
     from arp.cli._shared import _portfolio_store
     from arp.research.value_chain import links
@@ -96,8 +96,8 @@ def links_import(csv_file: Path = typer.Argument(..., exists=True, dir_okay=Fals
     vc, store = _value_chain(), _portfolio_store()
     with csv_file.open(newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
-        if reader.fieldnames != ["company_id", "icio_code", "share"]:
-            typer.echo("header must be company_id,icio_code,share", err=True)
+        if reader.fieldnames != ["company_id", "sector", "share"]:
+            typer.echo("header must be company_id,sector,share", err=True)
             raise typer.Exit(1)
         splits: dict[str, list[dict]] = {}
         for row in reader:
@@ -105,7 +105,7 @@ def links_import(csv_file: Path = typer.Argument(..., exists=True, dir_okay=Fals
                 share: float | str = float(row["share"])
             except (TypeError, ValueError):
                 share = row["share"]
-            splits.setdefault(row["company_id"], []).append({"icio_code": row["icio_code"], "share": share})
+            splits.setdefault(row["company_id"], []).append({"sectors": [row["sector"]], "share": share})
     set_by, rejected = _set_by(), []
     for company_id, parts in splits.items():
         try:
@@ -128,7 +128,7 @@ def links_classify(
     portfolio: str = typer.Option(..., "--portfolio"),
     as_of: str = typer.Option(None, "--as-of", help="Default: the portfolio's latest snapshot."),
 ) -> None:
-    """Asks the LLM for an ICIO code for each held company that has no link, and stores it as an `llm` rule."""
+    """Asks the LLM for an EXIOBASE sector for each held company that has no link, and stores it as an `llm` rule."""
     import asyncio
 
     from arp.cli._shared import _portfolio_store
@@ -157,3 +157,28 @@ def links_classify(
         raise typer.Exit(1) from exc
     classified, unlinked = asyncio.run(classify_unlinked(store, portfolio, as_of, model, build_llm_client(settings)))
     typer.echo(f"{classified} classified, {unlinked} left unlinked")
+
+
+@io_app.command("migrate-exiobase")
+def io_migrate_exiobase(
+    file: Path = typer.Option(None, "--file", exists=True, dir_okay=False, help="Convert this one theme, taxonomy or run theme.json file in place."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Print what would change, write nothing."),
+) -> None:
+    """One-off: converts stored ICIO codes (taxonomies, link rules) to EXIOBASE sector names."""
+    from arp.research.indirect_exposure import migrate
+
+    try:
+        if file is not None:
+            plan = migrate.plan_file(file, str(file))
+        else:
+            from arp.cli._shared import _link_rule_stores, _taxonomy_store
+
+            plan = migrate.plan_all(_taxonomy_store().taxonomies_dir, _link_rule_stores())
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    for line, write in plan:
+        typer.echo(line)
+        if not dry_run:
+            write()
+    typer.echo(f"{len(plan)} changed")
