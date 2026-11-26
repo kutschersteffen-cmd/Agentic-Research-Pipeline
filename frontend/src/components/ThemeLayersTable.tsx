@@ -3,7 +3,7 @@ import { api } from "../api/client";
 import { errorDetail, layersSummary, todayUtc, viaLabel } from "../lib/themeLayers";
 import type { ThemeLayers } from "../types";
 
-const num = (x: number | null) => (x === null ? "" : x.toFixed(4));
+const num = (x: number | null) => (x === null ? "" : `${(x * 100).toFixed(1)}%`);
 
 /** Exposure layers of one theme run: direct (L1), value chain (L2), macro (L3, no data yet) and score S. */
 /** `results` is the run's results as last loaded: when they change, the layers are fetched again. */
