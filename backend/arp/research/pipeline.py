@@ -86,7 +86,9 @@ async def _match_company(
         company_isic, u_isic = await resolve_company_isic(company, isic_model, llm)
         usages.append(u_isic)
 
-    funnel_thresholds = thresholds_for(theme.theme_id) if settings.models_universe_funnel_enabled else None
+    funnel_on = settings.models_universe_funnel_enabled
+    funnel_thresholds = None if funnel_on is False else thresholds_for(
+        theme.theme_id, settings.funnel_thresholds_path, tuned_only=funnel_on is None)
     for activity in theme.activities:
         match, activity_usages = await match_company_activity(
             company,

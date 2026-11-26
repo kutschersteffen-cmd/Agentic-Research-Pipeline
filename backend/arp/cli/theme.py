@@ -380,7 +380,7 @@ def _case_documents(documents_dir: Path, case_id: str) -> list[SourceDocument]:
 
 def funnel_report(theme: ThemeDefinition, cases: ExposureSet, documents_dir: Path, split: str) -> list[dict]:
     """One row per golden case: kept when the funnel passes any of the theme's activities for its documents."""
-    thresholds = thresholds_for(theme.theme_id)
+    thresholds = thresholds_for(theme.theme_id, get_settings().funnel_thresholds_path)
     store = _funnel_content_store(get_settings())
     rows = []
     for case in cases.cases:
