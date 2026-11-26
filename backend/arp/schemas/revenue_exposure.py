@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from arp.schemas.common import Citation
 
 RevenueCapexMetric = Literal["revenue", "capex"]
-ExposureDataSource = Literal["catalogue", "extracted", "qualitative", "unresolved", "news"]
+ExposureDataSource = Literal["catalogue", "extracted", "qualitative", "unresolved", "news", "reported", "modelled"]
 
 
 class CatalogueDataPoint(BaseModel):
@@ -62,6 +62,8 @@ class MetricExposure(BaseModel):
     matched_catalogue_labels: list[str] = Field(default_factory=list)
     citation: ExposureCitation | None = None
     notes: str = ""
+    low_pct: float | None = Field(default=None, description="0-1, set only when source is modelled.")
+    high_pct: float | None = Field(default=None, description="0-1, set only when source is modelled.")
 
 
 class RevenueExposureResult(BaseModel):

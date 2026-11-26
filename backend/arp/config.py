@@ -366,6 +366,9 @@ class Settings(BaseSettings):
     revenue_exposure_pure_play_threshold: float = Field(default=0.5)
     revenue_exposure_significant_threshold: float = Field(default=0.2)
     revenue_exposure_minor_threshold: float = Field(default=0.05)
+    theme_revenue_share_enabled: bool = Field(default=False, description="Theme runs read XBRL segment revenue as reported/modelled shares.")
+    revenue_share_modelled_low_factor: float = Field(default=0.3)
+    revenue_share_modelled_high_factor: float = Field(default=0.5)
 
     # Theme exposure layers (arp/research/exposure_layers.py): S = w1*L1 + w2*L2 + w3*L3.
     # Checked by layer_params, not here, so a bad value fails only the layers, never app start.
@@ -389,6 +392,8 @@ class Settings(BaseSettings):
     arbitration_weight_qualitative_debate: float = Field(default=0.6, description="Weight for the Advocate/Opposing/Adjudicator debate's exposure_estimate.")
     arbitration_weight_revenue_catalogue: float = Field(default=1.0, description="Weight for a deterministic, user-supplied revenue-catalogue hit.")
     arbitration_weight_revenue_extracted: float = Field(default=0.8, description="Weight for an LLM-extracted, grounded revenue percentage.")
+    arbitration_weight_revenue_reported: float = Field(default=1.0, description="Weight for a reported XBRL segment revenue share.")
+    arbitration_weight_revenue_modelled: float = Field(default=0.4, description="Weight for a modelled (segment-description) revenue share.")
     arbitration_weight_indirect: float = Field(default=0.3, description="Weight for the sector-level input-output structural exposure signal.")
     arbitration_weight_rd_intensity: float = Field(default=0.5, description="Weight for Method C's extracted R&D-intensity signal.")
     arbitration_weight_news_mentions: float = Field(default=0.2, description="Weight for Method C's web-search news-mention signal (the weakest/noisiest).")

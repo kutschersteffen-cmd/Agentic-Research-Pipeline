@@ -45,6 +45,22 @@ def _collect_contributions(
                 detail=f"{revenue.value_pct:.1%}" if revenue.value_pct is not None else "",
             )
         )
+    elif revenue_exposure is not None and revenue_exposure.revenue.source == "reported":
+        revenue = revenue_exposure.revenue
+        contributions.append(
+            ArbitrationContribution(
+                method="revenue_reported", signal=min(max(revenue.value_pct or 0.0, 0.0), 1.0),
+                weight=settings.arbitration_weight_revenue_reported, detail=f"{revenue.value_pct:.1%}",
+            )
+        )
+    elif revenue_exposure is not None and revenue_exposure.revenue.source == "modelled":
+        revenue = revenue_exposure.revenue
+        contributions.append(
+            ArbitrationContribution(
+                method="revenue_modelled", signal=min(max(revenue.value_pct or 0.0, 0.0), 1.0),
+                weight=settings.arbitration_weight_revenue_modelled, detail=f"{revenue.low_pct:.1%}-{revenue.high_pct:.1%}",
+            )
+        )
 
     if indirect_exposure is not None:
         upstream, downstream = indirect_exposure.upstream_exposure, indirect_exposure.downstream_exposure

@@ -31,6 +31,7 @@ from arp.schemas.revenue_exposure import ActivityCatalogueMapping, MetricExposur
 from arp.schemas.thematic import ThemeDefinition
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
+from arp.xbrl_pipeline.store import XbrlStore
 
 router = APIRouter(prefix="/api/themes", tags=["themes"])
 
@@ -128,6 +129,12 @@ async def start_theme_run(
             settings=settings,
             schema=schema,
             isic_model=indirect_model,
+            xbrl_store=XbrlStore(settings.xbrl_dir) if settings.theme_revenue_share_enabled else None,
+        )
+    elif settings.theme_revenue_share_enabled:
+        revenue_resolver = RevenueResolverContext(
+            catalogue_by_company={}, mappings=[], registry=registry, settings=settings, schema=schema,
+            isic_model=indirect_model, xbrl_store=XbrlStore(settings.xbrl_dir), extract_enabled=False,
         )
 
     rd_resolver = None

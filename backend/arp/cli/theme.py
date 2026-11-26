@@ -42,6 +42,7 @@ from arp.schemas.thematic import MatchVerdict, ThemeDefinition
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.universe import load_company_universe
+from arp.xbrl_pipeline.store import XbrlStore
 
 theme_app = typer.Typer(help="Thematic investment universe screening.")
 edges_app = typer.Typer(help="Supply edges in the company graph (Neo4j), for the exposure layers.")
@@ -287,9 +288,14 @@ def theme_run(
         mappings = [ActivityCatalogueMapping.model_validate(m) for m in json.loads(catalogue_mapping.read_text())]
         revenue_resolver = RevenueResolverContext(
             catalogue_by_company=catalogue_by_company(catalogue), mappings=mappings, registry=_registry(), settings=settings, schema=schema,
-            isic_model=indirect_model,
+            isic_model=indirect_model, xbrl_store=XbrlStore(settings.xbrl_dir) if settings.theme_revenue_share_enabled else None,
         )
         typer.echo(f"Revenue-exposure resolution enabled ({len(mappings)} confirmed activity mapping(s)).")
+    elif settings.theme_revenue_share_enabled:
+        revenue_resolver = RevenueResolverContext(
+            catalogue_by_company={}, mappings=[], registry=_registry(), settings=settings, schema=schema,
+            isic_model=indirect_model, xbrl_store=XbrlStore(settings.xbrl_dir), extract_enabled=False,
+        )
 
     rd_resolver = None
     if enable_rd_exposure:
