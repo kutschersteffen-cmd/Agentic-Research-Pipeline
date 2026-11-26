@@ -18,6 +18,7 @@ import { DraftInput } from "../components/DraftInput";
 import { listText, parseList } from "../lib/draftInput";
 
 const EXPOSURE_RANK: Record<string, number> = { pure_play: 3, significant: 2, minor: 1, none: 0 };
+const EXPOSURE_LABEL: Record<string, string> = { pure_play: "Pure play", significant: "Significant", minor: "Minor", none: "None" };
 
 interface Props {
   onSendToArgus?: (path: string) => Promise<void>;
@@ -29,10 +30,8 @@ interface Props {
 }
 
 export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, onPendingTaxonomyTaken, initialRunId }: Props = {}) {
-  const [name, setName] = useState("Electrification");
-  const [description, setDescription] = useState(
-    "The shift of energy generation, transport, industry, and buildings from fossil fuels to electricity."
-  );
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [theme, setTheme] = useState<ThemeDefinition | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +54,7 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, onPendingTaxono
   const [verdictFilter, setVerdictFilter] = useState("all");
   const [activityFilter, setActivityFilter] = useState("all");
   const [flaggedOnly, setFlaggedOnly] = useState(false);
-  const [sortBy, setSortBy] = useState<"confidence_desc" | "confidence_asc" | "exposure_desc" | "name_asc">("confidence_desc");
+  const [sortBy, setSortBy] = useState<"confidence_desc" | "confidence_asc" | "exposure_desc" | "name_asc">("exposure_desc");
   const [sendBusy, setSendBusy] = useState(false);
   const [sendStatus, setSendStatus] = useState("");
   const [sentUniverse, setSentUniverse] = useState<{ path: string; count: number } | null>(null);
@@ -269,7 +268,12 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, onPendingTaxono
         sorted.sort((a, b) => a.confidence - b.confidence);
         break;
       case "exposure_desc":
-        sorted.sort((a, b) => (EXPOSURE_RANK[b.exposure_estimate] ?? 0) - (EXPOSURE_RANK[a.exposure_estimate] ?? 0));
+        sorted.sort(
+          (a, b) =>
+            (EXPOSURE_RANK[b.exposure_estimate] ?? 0) - (EXPOSURE_RANK[a.exposure_estimate] ?? 0) ||
+            b.confidence - a.confidence ||
+            a.name.localeCompare(b.name)
+        );
         break;
       case "name_asc":
         sorted.sort((a, b) => a.name.localeCompare(b.name));
@@ -316,7 +320,7 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, onPendingTaxono
           Description
           <textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
         </label>
-        <button onClick={decompose} disabled={busy}>
+        <button onClick={decompose} disabled={busy || !name.trim()}>
           Decompose into activities
         </button>
         {theme && !loadedTaxonomy && (
@@ -413,26 +417,23 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, onPendingTaxono
         />
         <label className="checkbox-label">
           <input type="checkbox" checked={useSampleIo} onChange={(e) => setUseSampleIo(e.target.checked)} />
-          Enable indirect (input-output) exposure tier using the bundled sample dataset
+          Also find companies linked to the theme through supply chains (uses sample data)
         </label>
         <p className="help-text">
-          Structural supply-chain exposure via EXIOBASE input-output propagation — catches companies with no
-          direct textual evidence but real economic linkage to the theme's core sectors. The sample dataset is
-          illustrative only; for a real run, set ARP_VALUE_CHAIN_DIR on the backend instead and leave this off.
+          Finds companies that never mention the theme but buy from or sell to those that do. The sample data is for trying this out only; for a real run, set ARP_VALUE_CHAIN_DIR on the backend and leave this off.
         </p>
 
         <p className="help-text" style={{ marginTop: 16 }}>
-          Optional: a structured revenue/CapEx catalogue — resolves exposure from hard disclosed numbers
-          (catalogue match, then extraction from disclosures) before falling back to the qualitative debate above.
+          Optional: upload a CSV of company revenue and capital spending by activity. Where a company is in the file, its figures are used first; the written debate above is used only when there are none.
         </p>
-        <input type="file" accept=".csv" aria-label="Revenue/CapEx catalogue (CSV)" onChange={uploadCatalogue} />
+        <input type="file" accept=".csv" aria-label="Revenue and capital spending file (CSV)" onChange={uploadCatalogue} />
         {catalogueStatus && <p className="status-text">{catalogueStatus}</p>}
         {cataloguePath && !loadedTaxonomy && (
-          <p className="help-text">Load a saved taxonomy above first — mapping suggestion needs a taxonomy_id to reference.</p>
+          <p className="help-text">Load a saved taxonomy above first. Matching activities to file labels needs one.</p>
         )}
         {cataloguePath && loadedTaxonomy && (
           <button onClick={suggestMapping} disabled={mappingBusy}>
-            Suggest activity -&gt; catalogue-label mapping
+            Match activities to file labels
           </button>
         )}
         {catalogueMappings.length > 0 && (
@@ -505,9 +506,9 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, onPendingTaxono
                   Flagged for review only
                 </label>
                 <select aria-label="Sort results" value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
+                  <option value="exposure_desc">Sort: strongest exposure first</option>
                   <option value="confidence_desc">Sort: confidence (high to low)</option>
                   <option value="confidence_asc">Sort: confidence (low to high)</option>
-                  <option value="exposure_desc">Sort: exposure (strongest first)</option>
                   <option value="name_asc">Sort: company name (A-Z)</option>
                 </select>
               </div>
@@ -558,7 +559,7 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, onPendingTaxono
                             <td>{m.name} {m.ticker && <span className="muted">({m.ticker})</span>}</td>
                             <td>{m.activity_name}</td>
                             <td><VerdictBadge verdict={m.verdict} /></td>
-                            <td>{m.exposure_estimate}</td>
+                            <td>{EXPOSURE_LABEL[m.exposure_estimate] ?? m.exposure_estimate}</td>
                             <td><ConfidenceBadge value={m.confidence} /></td>
                             <td>
                               {revenue && revenue.value_pct != null ? (
