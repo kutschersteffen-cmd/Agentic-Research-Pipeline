@@ -7887,6 +7887,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/themes/runs/{run_id}/exposure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Company Exposure
+         * @description One row per company of a theme run: revenue share, momentum, tier and role; computed on read.
+         */
+        get: operations["get_company_exposure_api_themes_runs__run_id__exposure_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/themes/runs/{run_id}/layers": {
         parameters: {
             query?: never;
@@ -12026,6 +12046,63 @@ export interface components {
             /** Traceback */
             traceback: string | null;
         };
+        /** CompanyExposure */
+        CompanyExposure: {
+            /** Rows */
+            rows: components["schemas"]["CompanyExposureRow"][];
+            /** Run Id */
+            run_id: string;
+            thresholds: components["schemas"]["ExposureThresholds"];
+        };
+        /** CompanyExposureActivity */
+        CompanyExposureActivity: {
+            /** Activity Id */
+            activity_id: string;
+            /** Activity Name */
+            activity_name: string;
+            /** Basis */
+            basis: string | null;
+            /** Relation */
+            relation: string | null;
+            /** Role */
+            role: string | null;
+            /** Share */
+            share: number | null;
+            /** Share High */
+            share_high: number | null;
+            /** Share Low */
+            share_low: number | null;
+            /** Verdict */
+            verdict: string;
+        };
+        /** CompanyExposureRow */
+        CompanyExposureRow: {
+            /** Activities */
+            activities: components["schemas"]["CompanyExposureActivity"][];
+            /** Company Id */
+            company_id: string;
+            /** Momentum */
+            momentum: number | null;
+            /** Momentum Band */
+            momentum_band: string | null;
+            momentum_signals: components["schemas"]["MomentumSignals"];
+            /** Name */
+            name: string;
+            /** Needs Check */
+            needs_check: boolean;
+            /** Role */
+            role: string | null;
+            /** Share */
+            share: number | null;
+            /** Share Basis */
+            share_basis: string | null;
+            /** Share High */
+            share_high: number | null;
+            /** Share Low */
+            share_low: number | null;
+            /** Tier */
+            tier: string;
+        };
         /** CompanyFactRow */
         CompanyFactRow: {
             /** Basis */
@@ -14321,6 +14398,15 @@ export interface components {
              */
             share: number;
         };
+        /** ExposureThresholds */
+        ExposureThresholds: {
+            /** Majority */
+            majority: number;
+            /** Partial */
+            partial: number;
+            /** Pure Play */
+            pure_play: number;
+        };
         /**
          * FactStatus
          * @enum {string}
@@ -16024,6 +16110,15 @@ export interface components {
              * @enum {string}
              */
             type: "metric_tilt";
+        };
+        /** MomentumSignals */
+        MomentumSignals: {
+            /** Capex */
+            capex: number | null;
+            /** Mentions */
+            mentions: number | null;
+            /** Rd */
+            rd: number | null;
         };
         /** MonitoringPreviewRequest */
         MonitoringPreviewRequest: {
@@ -36651,6 +36746,37 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_company_exposure_api_themes_runs__run_id__exposure_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyExposure"];
                 };
             };
             /** @description Validation Error */
