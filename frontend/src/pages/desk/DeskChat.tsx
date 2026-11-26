@@ -68,6 +68,14 @@ export function DeskChat({ chatId }: { chatId: string }) {
   const opener = useRef<HTMLButtonElement | null>(null); // the chip that opened the panel gets focus back
   const closeCitation = useCallback(() => setCited(null), []);
   useEffect(() => { if (cited === null) opener.current?.focus(); }, [cited]);
+  // Switching between the answer and "How this answer was found" moves focus to what replaced the clicked link.
+  const howHeading = useRef<HTMLHeadingElement>(null);
+  const howLink = useRef<HTMLAnchorElement>(null);
+  const switched = useRef(false);
+  useEffect(() => {
+    if (!switched.current) return;
+    (view === "how" ? howHeading.current : howLink.current)?.focus();
+  }, [view]);
 
   if (notFound) return <div className="page desk-page"><p role="alert">Chat not found.</p></div>;
   if (!chat) return <div className="page desk-page">{error ? <p className="error-text" role="alert">{error}</p> : <p className="muted" role="status">Loading…</p>}</div>;
@@ -133,7 +141,7 @@ export function DeskChat({ chatId }: { chatId: string }) {
                   {s.status === "to_check" && <span className="desk-mark" data-kind="to_check"> to check</span>}
                   {s.citations.map((c) => {
                     const at = citations.indexOf(c);
-                    return <button key={at} type="button" className="desk-cite" aria-pressed={cited === at} onClick={(e) => { opener.current = e.currentTarget; setCited(at); }}>{c.source}</button>;
+                    return <button key={at} type="button" className="desk-cite" data-cite={at} aria-pressed={cited === at} onClick={(e) => { opener.current = e.currentTarget; setCited(at); }}>{c.source}</button>;
                   })}
                 </p>
               ))}
@@ -143,14 +151,14 @@ export function DeskChat({ chatId }: { chatId: string }) {
                   <code>{c.formula}</code>
                 </details>
               ))}
-              <p><a href={href} onClick={(e) => { e.preventDefault(); setCited(null); setView("how"); }}>How was this found?</a></p>
+              <p><a href={href} ref={howLink} onClick={(e) => { e.preventDefault(); switched.current = true; setCited(null); setView("how"); }}>How was this found?</a></p>
             </article>
           )}
 
           {answer && view === "how" && turn && (
             <article className="desk-how">
-              <p><span aria-hidden="true">← </span><a href={href} onClick={(e) => { e.preventDefault(); setView("answer"); }}>Back to the answer</a></p>
-              <h2>How this answer was found</h2>
+              <p><span aria-hidden="true">← </span><a href={href} onClick={(e) => { e.preventDefault(); switched.current = true; setView("answer"); }}>Back to the answer</a></p>
+              <h2 ref={howHeading} tabIndex={-1}>How this answer was found</h2>
               <p className="muted">{turn.question}</p>
               <h3>Where the time went</h3>
               <ul className="desk-time">
@@ -186,7 +194,7 @@ export function DeskChat({ chatId }: { chatId: string }) {
           )}
         </div>
         {answer && cited !== null && citations[cited] && (
-          <CitationPanel key={cited} citations={citations} at={cited} sources={turn!.sources} onMove={setCited} onClose={closeCitation} />
+          <CitationPanel key={cited} citations={citations} at={cited} sources={turn!.sources} onMove={(at) => { opener.current = document.querySelector<HTMLButtonElement>(`[data-cite="${at}"]`); setCited(at); }} onClose={closeCitation} />
         )}
       </div>
     </div>
