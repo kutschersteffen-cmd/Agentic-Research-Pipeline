@@ -1,6 +1,6 @@
 # Theme funnel tuning and funnel on by default
 
-Status: Draft, for owner approval
+Status: approved by the owner, 2026-11-26
 Slug: `theme-funnel-tuning`
 Risk: `risk:normal` (one CLI command, one setting's default, one fallback; no auth, money or `risk:high` path)
 Size: `M`, two slices (see `## Slices`). R&D Lab plan item 4, fixes finding P4.
