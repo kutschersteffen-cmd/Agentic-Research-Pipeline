@@ -6,6 +6,7 @@ import hashlib
 import logging
 import re
 import threading
+import time
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 from pathlib import Path
@@ -102,13 +103,18 @@ def _has_text_layer(path: Path, sample: int = 5, min_chars: int = 50) -> bool:
 # ponytail: process-wide lock; a parse worker process (or pool) if parse throughput matters
 _DOCLING_LOCK = threading.Lock()
 
+# What the current thread's parse saw (ocr, tables_found, compute), read by parse_file_with_report.
+_parse_facts = threading.local()
+
 
 def _convert(path: Path):
     """OCR only for a PDF without a text layer (a scan). Text in images inside an otherwise
     digital PDF (e.g. a chart's labels) is not read; tables and body text are."""
     with _DOCLING_LOCK:
         ocr = path.suffix.lower() == ".pdf" and not _has_text_layer(path)
-        return _docling_converter(ocr).convert(str(path)).document
+        doc = _docling_converter(ocr).convert(str(path)).document
+        _parse_facts.ocr, _parse_facts.tables_found = ocr, len(doc.tables)
+        return doc
 
 
 _UNIT_NOTE = re.compile(r"\bin\s+[^()\n,;:]+", re.I)
@@ -205,6 +211,7 @@ def _extract_pdf_text(path: Path) -> tuple[str, list[int], list[TableSpan]]:
     """
     remote = compute_client.parse_pdf(path, parser_version())
     if remote is not None:
+        _parse_facts.compute = True
         return remote
     return _extract_pdf_text_local(path)
 
@@ -288,6 +295,44 @@ def parse_file_to_text_with_pages(path: Path) -> tuple[str, list[int], list[Tabl
     raise ValueError(f"Unsupported document file type: {suffix}")
 
 
+def parse_file_with_report(path: Path) -> tuple[str, list[int], list, dict]:
+    """parse_file_to_text_with_pages plus a parse report: parser, version, page count, pages under 50
+    characters, OCR, Docling tables found vs kept as spans, and parse seconds."""
+    _parse_facts.__dict__.clear()
+    start = time.perf_counter()
+    text, page_breaks, *rest = parse_file_to_text_with_pages(path)
+    seconds = time.perf_counter() - start
+    facts = dict(_parse_facts.__dict__)
+    _parse_facts.__dict__.clear()
+    table_spans = rest[0] if rest else []
+    suffix = path.suffix.lower()
+    if suffix in _PDF_SUFFIXES:
+        parser = "compute" if facts.get("compute") else "docling"
+    elif suffix in _DOCX_SUFFIXES:
+        parser = "docling"
+    elif suffix in _HTML_SUFFIXES:
+        parser = "html"
+    elif suffix in esef.ESEF_SUFFIXES:
+        parser = "esef"
+    elif suffix in _TEXT_SUFFIXES:
+        parser = "text"
+    else:
+        parser = "xlsx"
+    docling = parser == "docling"
+    ends = [b - 2 for b in page_breaks[1:]] + [len(text)]  # pages are joined with "\n\n"
+    report = {
+        "parser": parser,
+        "parser_version": parser_version(),
+        "page_count": len(page_breaks) if suffix in _PDF_SUFFIXES else None,
+        "short_pages": [i for i, (a, b) in enumerate(zip(page_breaks, ends, strict=False), 1) if len(text[a:b].strip()) < 50],
+        "ocr": facts.get("ocr") if docling else None,
+        "tables_found": facts.get("tables_found") if docling else None,
+        "tables_kept": len(table_spans),
+        "parse_seconds": round(seconds, 2),
+    }
+    return text, page_breaks, table_spans, report
+
+
 def parse_file_to_text(path: Path) -> str:
     return parse_file_to_text_with_pages(path)[0]
 
@@ -332,7 +377,7 @@ class LocalFileDocumentSource(DocumentSource):
         """
         if self._content_store is not None:
             parsed = self._content_store.get_or_parse(
-                file_path, parser_version=parser_version(), parse=parse_file_to_text_with_pages
+                file_path, parser_version=parser_version(), parse=parse_file_with_report
             )
             doc_id = derive_doc_id(company_id, doc_type.value, parsed.content_key)
             doc_id = self._content_store.register_document(
