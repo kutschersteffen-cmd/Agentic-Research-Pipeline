@@ -1,5 +1,7 @@
 import { evenCuts } from "../lib/levels";
 import type { LevelCriterion, LevelRule, MechanismConfig } from "../types";
+import { DraftInput } from "./DraftInput";
+import { listText, parseNumberList } from "../lib/draftInput";
 
 /** A column as an expression can name it: its slug, as the rule engine exposes it. */
 function slug(name: string): string {
@@ -81,17 +83,9 @@ export function LevelGridEditor({ config, columns, onChange }: Props) {
         </label>
         <label className="field-label">
           Tier boundaries (best first)
-          <input
-            value={(config.pinned_cuts ?? []).join(", ")}
-            onChange={(e) =>
-              set({
-                cut_mode: "absolute",
-                pinned_cuts: e.target.value
-                  .split(",")
-                  .map((v) => Number(v.trim()))
-                  .filter((v) => !Number.isNaN(v)),
-              })
-            }
+          <DraftInput
+            value={listText((config.pinned_cuts ?? []).map(String))}
+            onText={(t) => set({ cut_mode: "absolute", pinned_cuts: parseNumberList(t) })}
           />
         </label>
       </div>

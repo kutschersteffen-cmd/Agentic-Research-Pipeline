@@ -1,15 +1,17 @@
-import { useCallback, useEffect, useReducer, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { RunManifest, StewardshipFlow, StewardshipStage } from "../types";
 import { ACTIVE_STATUSES, REVIEWABLE_RUN_TYPES, decisionRunType, waitingCount } from "../lib/runs";
 import { listAllRuns, usePoll } from "../lib/poll";
 import { PROCESSES, WORKSPACES, stepHref, workspaceOfProcess, type Process, type Step, type Workspace, type WorkspaceId } from "../lib/processes";
 import { useMe } from "../lib/reviewer";
-import { STATE_LABEL, cardView, failedProcesses, flowTrack, openCount, processState, stepActivity, stepState, stepStatusLine, type Activity, type StepState } from "../lib/workspaceCard";
+import { STATE_LABEL, askBox, cardView, heroCaption, needsYouText, runningDetail, workingSentence, workspaceCaption, failedProcesses, flowTrack, openCount, processState, stepActivity, stepCount, stepRail, stepState, stepStatusLine, type Activity, type StepState } from "../lib/workspaceCard";
 import { Drawing, WorkspaceDrawing } from "../components/WorkspaceDrawing";
+import { Orb } from "../components/Orb";
 import { cockpitDrawing } from "../lib/workspaceDrawing";
 import { announce } from "../lib/announce";
 import { previousMonth } from "../lib/holdings";
+import { MAX_ZOOM, MIN_ZOOM, ZOOM_KEY, clampZoom, fitZoom, readStoredZoom, stepZoom, wheelZoom } from "../lib/flowZoom";
 
 // The start page, the five workspace pages and the process bar. Workspaces and
 // their processes live in lib/processes.ts; this file draws them and reads
@@ -57,30 +59,34 @@ export function useActivity(): Activity | null {
   return activity;
 }
 
-/** A workspace as a card: a way into it. A drawing, its purpose, one square per process and one
- * status line naming what matters now; the label carries each process's state for screen readers. */
-function WorkspaceCard({ w, runs, flow }: { w: Workspace; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
+/** A workspace as a card: a way into it. A drawing whose status part lights up, its purpose, a rail with one
+ * segment per process and one status line naming what matters now; the label carries each process's state for
+ * screen readers. */
+function WorkspaceCard({ w, runs, flow, known }: { w: Workspace; runs: RunManifest[] | null; flow: StewardshipFlow | null; known: boolean }) {
   const v = cardView(w, runs, flow, new Date());
-  const { word, tone, detail } = v.status;
+  const { word, tone } = v.status;
+  // Running: name the step and where it sits; every other detail stays as cardStatus() gives it.
+  const detail = (tone === "now" && runningDetail(w, runs, flow)) || v.status.detail;
   const n = w.processes.length;
+  const lit = tone === "wait" ? "wait" : tone === "now" ? "now" : null;
   return (
-    <a className={`hub-card${tone === "wait" ? " hub-card-await" : ""}`} href={`#/${w.id}`} aria-label={v.label}>
+    <a className={`hub-card${tone === "wait" ? " hub-card-await" : tone === "now" ? " hub-card-run" : ""}`} href={`#/${w.id}`} aria-label={v.label}>
       <span className="hub-card-fig">
         <span className="hub-card-cap">{`${n} ${n === 1 ? "process" : "processes"}`}</span>
-        <WorkspaceDrawing id={w.id} accent={tone === "wait" ? "wait" : tone === "now" ? "now" : null} />
+        <WorkspaceDrawing id={w.id} accent={lit} known={known} />
       </span>
       <span className="hub-card-body">
         <span className="hub-card-name">{w.name}</span>
         <span className="hub-card-purpose">{w.purpose}</span>
         <span className="hub-card-status">
-          <span className="hub-marks" aria-hidden="true">
-            {v.dots.map((d, i) => (
-              <span key={i} className={`hub-mark hub-mark-${d}`} />
-            ))}
-          </span>
-          <span>
+          <span className="hub-card-line">
             <span className={`hub-status-${tone}`}>{word}</span>
-            {detail && <span className="hub-status-detail"> · {detail}</span>}
+            {detail && <span className="hub-status-detail">{detail}</span>}
+          </span>
+          <span className="hub-rail" data-rail aria-hidden="true">
+            {v.dots.map((d, i) => (
+              <span key={i} data-seg={d} />
+            ))}
           </span>
         </span>
       </span>
@@ -88,26 +94,53 @@ function WorkspaceCard({ w, runs, flow }: { w: Workspace; runs: RunManifest[] | 
   );
 }
 
+/** `GET /api/waiting`'s total, loaded once; null until it answers or when it fails. */
+function useWaitingTotal() {
+  const [total, setTotal] = useState<number | null>(null);
+  useEffect(() => {
+    api.getWaiting().then((w) => setTotal(w.total), () => setTotal(null));
+  }, []);
+  return total;
+}
+
 const COCKPIT_SHAPES = cockpitDrawing();
 
 export function StartPage() {
   const { runs, error, retry } = useRuns();
-  const { flow } = useHouseFlow();
+  const { flow, error: flowError } = useHouseFlow();
+  // A drawing's first known status is drawn in place. A workspace that reads the stewardship flow waits for it
+  // too, so its answer arriving after the runs does not read as a change.
+  const flowSettled = flow !== null || flowError !== null;
+  const drawnKnown = (w: Workspace) => runs !== null && (flowSettled || !w.processes.some((p) => p.steps.some((s) => s.stage)));
   const reviewer = useMe()?.name ?? "";
+  const [opened] = useState(() => new Date());
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const name = reviewer.trim();
   const known = runs !== null;
+  const waiting = useWaitingTotal();
+  // Unknown counts are left out, never shown as zero.
+  const working = known && !error ? workingSentence(runs) : null;
+  const needs = needsYouText(waiting);
 
   return (
     <div className="page hub hub-start">
       <header className="hub-hero">
-        <h1>
-          <span className="hub-hero-greet">
+        <div className="hub-hero-copy">
+          <p className="hub-hero-cap">{heroCaption(opened)}</p>
+          <h1>
             {greeting}
             {name ? `, ${name}` : ""}.
-          </span>
-        </h1>
+          </h1>
+          <p className="hub-hero-lead" data-hero-lead>
+            {working}
+            {working && needs ? " " : ""}
+            {needs && <a href="#/review">{needs}</a>}
+          </p>
+        </div>
+        <div className="hub-hero-stage">
+          <Orb place="start" label />
+        </div>
       </header>
       {error && (
         <p className="error-text" role="alert">
@@ -119,7 +152,7 @@ export function StartPage() {
       )}
       <div className="hub-cards">
         {WORKSPACES.map((w) => (
-          <WorkspaceCard key={w.id} w={w} runs={runs} flow={flow} />
+          <WorkspaceCard key={w.id} w={w} runs={runs} flow={flow} known={drawnKnown(w)} />
         ))}
       </div>
       {/* Not a workspace card: one StewardIQ screen with its own way in, so the cards stay five workspaces. */}
@@ -159,9 +192,216 @@ function writeWalk(walk: Walk | null) {
   }
 }
 
+function readZoom(): number {
+  try {
+    return readStoredZoom(localStorage.getItem(ZOOM_KEY));
+  } catch {
+    return 100;
+  }
+}
+
+/** A flow's scroll window and its zoom (spec process-flow-viewer): buttons and keys keep the middle of the window
+ * where it is, wheel and pinch the point under the pointer or between the fingers; the mouse drags the flow. */
+function useFlowWindow() {
+  const [ol, setOl] = useState<HTMLOListElement | null>(null);
+  const olRef = useRef<HTMLOListElement | null>(null);
+  const [zoom, setZoomState] = useState(readZoom);
+  const zoomRef = useRef(zoom);
+  const shownZoom = useRef(zoom); // the zoom the window is laid out at
+  // The point to hold still across a zoom change: where it is in the window (px), and its share of the content measured
+  // before the change. Shares, not the zoom ratio, because cards stretched to fill the window grow by less than it.
+  const anchor = useRef<{ x: number; y: number; fx: number; fy: number } | null>(null);
+  const bind = useCallback((el: HTMLOListElement | null) => {
+    olRef.current = el;
+    setOl(el);
+  }, []);
+
+  const setZoom = useCallback((next: number, x?: number, y?: number) => {
+    const el = olRef.current;
+    const z = clampZoom(next);
+    if (z === zoomRef.current) return;
+    if (z === shownZoom.current) anchor.current = null; // back to the laid-out zoom before a render: nothing to move
+    else if (el) {
+      const ax = x ?? el.clientWidth / 2;
+      const ay = y ?? el.clientHeight / 2;
+      const held = anchor.current; // several changes before one layout: its shares were measured on that layout
+      anchor.current = { x: ax, y: ay, fx: held?.fx ?? (el.scrollLeft + ax) / el.scrollWidth, fy: held?.fy ?? (el.scrollTop + ay) / el.scrollHeight };
+    }
+    zoomRef.current = z;
+    setZoomState(z);
+    try {
+      localStorage.setItem(ZOOM_KEY, String(Math.round(z)));
+    } catch {
+      /* storage unavailable: the zoom lasts for this visit */
+    }
+  }, []);
+
+  useLayoutEffect(() => {
+    const a = anchor.current;
+    const el = olRef.current;
+    anchor.current = null;
+    shownZoom.current = zoom;
+    if (!a || !el) return;
+    el.scrollLeft = a.fx * el.scrollWidth - a.x;
+    el.scrollTop = a.fy * el.scrollHeight - a.y;
+  }, [zoom]);
+
+  // Ctrl or cmd + wheel and a two-finger pinch zoom the flow, never the page; both need a listener that may cancel.
+  useEffect(() => {
+    if (!ol) return;
+    const local = (cx: number, cy: number) => {
+      const r = ol.getBoundingClientRect();
+      return [cx - r.left - ol.clientLeft, cy - r.top - ol.clientTop] as const;
+    };
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      setZoom(wheelZoom(zoomRef.current, e.deltaY), ...local(e.clientX, e.clientY));
+    };
+    // A pinch counts only fingers on the flow (a thumb resting elsewhere on the screen is not one of them).
+    let pinch: { d: number; z: number } | null = null;
+    const onFlow = (e: TouchEvent) => [...e.touches].filter((t) => ol.contains(t.target as Node));
+    const span = (t: Touch[]) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    const onTouchStart = (e: TouchEvent) => {
+      const t = onFlow(e);
+      pinch = t.length === 2 ? { d: span(t), z: zoomRef.current } : null;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      const t = onFlow(e);
+      if (!pinch || t.length !== 2 || pinch.d === 0) return;
+      e.preventDefault();
+      setZoom(pinch.z * (span(t) / pinch.d), ...local((t[0].clientX + t[1].clientX) / 2, (t[0].clientY + t[1].clientY) / 2));
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      if (onFlow(e).length < 2) pinch = null;
+    };
+    ol.addEventListener("wheel", onWheel, { passive: false });
+    ol.addEventListener("touchstart", onTouchStart, { passive: true });
+    ol.addEventListener("touchmove", onTouchMove, { passive: false });
+    ol.addEventListener("touchend", onTouchEnd);
+    ol.addEventListener("touchcancel", onTouchEnd);
+    return () => {
+      ol.removeEventListener("wheel", onWheel);
+      ol.removeEventListener("touchstart", onTouchStart);
+      ol.removeEventListener("touchmove", onTouchMove);
+      ol.removeEventListener("touchend", onTouchEnd);
+      ol.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, [ol, setZoom]);
+
+  // A mouse press that moves more than 5 px drags the flow, counted from the press; its release opens no step.
+  const drag = useRef<{ id: number; x: number; y: number; left: number; top: number; on: boolean } | null>(null);
+  const swallowClick = useRef(false);
+  const onPointerDown = (e: React.PointerEvent<HTMLOListElement>) => {
+    swallowClick.current = false;
+    if (e.pointerType !== "mouse" || e.button !== 0) return;
+    const el = e.currentTarget;
+    drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, left: el.scrollLeft, top: el.scrollTop, on: false };
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLOListElement>) => {
+    const d = drag.current;
+    if (!d || d.id !== e.pointerId) return;
+    const el = e.currentTarget;
+    if ((e.buttons & 1) === 0) {
+      // released where the window did not see it (outside it, or on its scrollbar): the drag is over
+      drag.current = null;
+      delete el.dataset.dragging;
+      return;
+    }
+    const dx = e.clientX - d.x;
+    const dy = e.clientY - d.y;
+    if (!d.on) {
+      if (Math.hypot(dx, dy) <= 5) return;
+      d.on = true;
+      el.setPointerCapture(e.pointerId);
+      el.dataset.dragging = "";
+      window.getSelection()?.removeAllRanges();
+    }
+    el.scrollLeft = d.left - dx;
+    el.scrollTop = d.top - dy;
+  };
+  const onPointerEnd = (e: React.PointerEvent<HTMLOListElement>) => {
+    const d = drag.current;
+    if (!d || d.id !== e.pointerId) return;
+    drag.current = null;
+    if (!d.on) return;
+    delete e.currentTarget.dataset.dragging;
+    swallowClick.current = true; // the click this release fires, if any, comes before this timer
+    window.setTimeout(() => (swallowClick.current = false), 0);
+  };
+  const onClickCapture = (e: React.MouseEvent) => {
+    if (!swallowClick.current) return;
+    swallowClick.current = false;
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  // +, = and - step the zoom, 0 resets it, while the focus is on the window or a step in it; with ctrl, cmd or alt
+  // the key is the browser's. Left and right arrows scroll the focused window.
+  const onKeyDown = (e: React.KeyboardEvent<HTMLOListElement>) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const el = e.currentTarget;
+    if (e.key === "+" || e.key === "=") setZoom(stepZoom(zoomRef.current, 1));
+    else if (e.key === "-") setZoom(stepZoom(zoomRef.current, -1));
+    else if (e.key === "0") setZoom(100);
+    else if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && e.target === el) el.scrollLeft += e.key === "ArrowRight" ? 40 : -40;
+    else return;
+    e.preventDefault();
+  };
+
+  // A step reached by keyboard is brought fully into the window (the browser's own focus scroll leaves a step that is
+  // already partly in view where it is). Only the window scrolls, never the page.
+  const onFocus = (e: React.FocusEvent<HTMLOListElement>) => {
+    const el = e.currentTarget;
+    const t = e.target as HTMLElement;
+    if (t === el || !t.matches(":focus-visible")) return;
+    const r = t.getBoundingClientRect();
+    const o = el.getBoundingClientRect();
+    const cs = getComputedStyle(el);
+    const left = o.left + el.clientLeft + parseFloat(cs.paddingLeft);
+    const right = o.left + el.clientLeft + el.clientWidth - parseFloat(cs.paddingRight);
+    if (r.left < left || r.width > right - left) el.scrollLeft -= left - r.left;
+    else if (r.right > right) el.scrollLeft += r.right - right;
+  };
+
+  const fit = () => {
+    const el = olRef.current;
+    if (!el) return;
+    const cs = getComputedStyle(el);
+    const inner = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    setZoom(fitZoom(inner, el.children.length));
+  };
+
+  return {
+    ol,
+    zoom,
+    setZoom,
+    fit,
+    windowProps: { ref: bind, tabIndex: 0, style: { "--fz": zoom / 100 } as React.CSSProperties, onKeyDown, onFocus, onPointerDown, onPointerMove, onPointerUp: onPointerEnd, onPointerCancel: onPointerEnd, onClickCapture },
+  };
+}
+
+/** Scrolls the window sideways so step `i` sits in its middle, as far as the scroll range allows; never the page. */
+function centreStep(ol: HTMLOListElement, i: number) {
+  const li = ol.children[i];
+  if (!li) return;
+  const r = li.getBoundingClientRect();
+  const o = ol.getBoundingClientRect();
+  ol.scrollLeft += r.left + r.width / 2 - (o.left + ol.clientLeft + ol.clientWidth / 2);
+}
+
+/** The step a flow opens on: the first waiting on a person, else the first running, else the first failed; -1 if none. */
+function attentionStep(states: StepState[]): number {
+  for (const s of ["wait", "now", "failed"] as const) {
+    const i = states.indexOf(s);
+    if (i >= 0) return i;
+  }
+  return -1;
+}
+
 /** One process drawn as its steps in order: each card carries the step's live
  * state and what it hands on; a click opens its details panel under the flow. */
-export function ProcessFlow({ p, runs, flow, activity, foldable = true }: { p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null; activity: Activity | null; foldable?: boolean }) {
+export function ProcessFlow({ p, runs, flow, activity, foldable = true, flowSettled = flow !== null, runsSettled = runs !== null }: { p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null; activity: Activity | null; foldable?: boolean; flowSettled?: boolean; runsSettled?: boolean }) {
   const state = runs ? processState(p, runs, flow, activity) : null;
   const [open, setOpen] = useState<number | null>(null);
   // While a panel is open the flow keeps the fold it had when the panel opened, so a poll never folds it away under the reader.
@@ -173,6 +413,27 @@ export function ProcessFlow({ p, runs, flow, activity, foldable = true }: { p: P
   };
   const views = p.steps.map((s) => stepView(s, runs, flow, activity));
   const { reached, runInto } = flowTrack(views.map((v) => v.state));
+  const rail = stepRail(p, runs, flow, activity);
+  const win = useFlowWindow();
+  const shown = Math.round(win.zoom);
+  // Once per mount, when the states are known: open on the step that needs attention. A folded flow waits for its
+  // first unfold (until then it has no width); later polls never scroll it again.
+  const [unfolds, setUnfolds] = useState(0);
+  // The zoom bar only exists while the steps show: not inside a closed fold, and not while a foldable flow does not
+  // know yet whether it folds (its runs have not answered or failed), so a hidden flow never shows a bar.
+  const [foldOpen, setFoldOpen] = useState(false);
+  useEffect(() => {
+    if (!folded) setFoldOpen(false); // a fold that comes back starts closed
+  }, [folded]);
+  const barShown = folded ? foldOpen : !foldable || runsSettled; // runs that failed to load count as answered
+  const attended = useRef(false);
+  const statesKnown = runs !== null && (flowSettled || !p.steps.some((s) => s.stage));
+  const attention = attentionStep(views.map((v) => v.state));
+  useLayoutEffect(() => {
+    if (attended.current || !statesKnown || !win.ol || win.ol.clientWidth === 0) return;
+    attended.current = true;
+    if (attention >= 0) centreStep(win.ol, attention);
+  }, [statesKnown, attention, win.ol, unfolds]);
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key !== "Escape" || open === null) return;
     e.stopPropagation(); // Esc closes this panel only, not the Ask ARP panel listening on window
@@ -181,10 +442,33 @@ export function ProcessFlow({ p, runs, flow, activity, foldable = true }: { p: P
   };
   const steps = (
     <div onKeyDown={onKeyDown}>
-      <ol className="hub-flow">
+      {barShown && (
+        <div className="hub-flow-zoom" data-flow-zoom-bar role="group" aria-label={`Zoom, ${p.title}`}>
+          <button type="button" aria-label="Zoom out" disabled={shown <= MIN_ZOOM} onClick={() => win.setZoom(stepZoom(win.zoom, -1))}>
+            −
+          </button>
+          <output data-flow-zoom aria-live="polite">{shown}%</output>
+          <button type="button" aria-label="Zoom in" disabled={shown >= MAX_ZOOM} onClick={() => win.setZoom(stepZoom(win.zoom, 1))}>
+            +
+          </button>
+          <button type="button" aria-label="Reset zoom" disabled={shown === 100} onClick={() => win.setZoom(100)}>
+            Reset
+          </button>
+          <button type="button" aria-label="Fit to width" onClick={win.fit}>
+            Fit
+          </button>
+        </div>
+      )}
+      {/* One segment per step (DESIGN.md, Status Rail); inside the fold, so a folded process shows none. */}
+      <span className="hub-rail hub-step-rail" data-rail aria-hidden="true">
+        {rail.map((seg, i) => (
+          <span key={i} data-seg={seg} />
+        ))}
+      </span>
+      <ol className="hub-flow" aria-label={`${p.title} steps`} {...win.windowProps}>
         {p.steps.map((s, i) => (
           <li key={`${s.tab}-${s.sub ?? ""}-${i}`} className={`hub-flow-item${i <= reached ? " reached" : ""}${runInto[i] ? " run-into" : ""}`}>
-            <StepCard s={s} i={i} p={p} view={views[i]} open={open === i} onToggle={() => toggle(i)} />
+            <StepCard s={s} i={i} p={p} view={views[i]} count={views[i].state === "now" ? stepCount(s, runs) : null} open={open === i} onToggle={() => toggle(i)} />
           </li>
         ))}
       </ol>
@@ -192,7 +476,7 @@ export function ProcessFlow({ p, runs, flow, activity, foldable = true }: { p: P
     </div>
   );
   return (
-    <section className="hub-process" aria-labelledby={`process-${p.id}`}>
+    <section className="hub-process" data-state={state ?? "unknown"} aria-labelledby={`process-${p.id}`}>
       <div className="section-heading">
         <h2 id={`process-${p.id}`}>{p.title}</h2>
         <span className="hub-process-meta">
@@ -211,8 +495,16 @@ export function ProcessFlow({ p, runs, flow, activity, foldable = true }: { p: P
       {p.run && <RunProcess p={p} />}
       {/* A process nobody has run is folded away so the ones with activity stand out; one click opens it. */}
       {folded ? (
-        <details className="hub-process-fold">
-          <summary>Show {p.steps.length} steps</summary>
+        <details
+          className="hub-process-fold"
+          onToggle={(e) => {
+            const isOpen = e.currentTarget.open;
+            setFoldOpen(isOpen);
+            if (isOpen) setUnfolds((n) => n + 1);
+          }}
+        >
+          {/* The click already renders the bar; the toggle event that confirms it comes a task later. */}
+          <summary onClick={(e) => setFoldOpen(!(e.currentTarget.parentElement as HTMLDetailsElement).open)}>Show {p.steps.length} steps</summary>
           {steps}
         </details>
       ) : (
@@ -292,7 +584,7 @@ function stepView(s: Step, runs: RunManifest[] | null, flow: StewardshipFlow | n
   return { state, line, last, stage, fromRuns: waiting > 0 };
 }
 
-function StepCard({ s, i, p, view, open, onToggle }: { s: Step; i: number; p: Process; view: StepView; open: boolean; onToggle: () => void }) {
+function StepCard({ s, i, p, view, count, open, onToggle }: { s: Step; i: number; p: Process; view: StepView; count: string | null; open: boolean; onToggle: () => void }) {
   const { state, line, last, stage } = view;
   if (s.planned) {
     return (
@@ -315,6 +607,7 @@ function StepCard({ s, i, p, view, open, onToggle }: { s: Step; i: number; p: Pr
           {s.optional && <span className="muted"> (optional)</span>}
         </span>
       </span>
+      {count && <span className="hub-step-count">{count}</span>}
       <span className={`hub-step-status hub-step-status-${line.tone}${line.tone === "wait" ? " hub-step-banner" : ""}`}>{line.text}</span>
       <span className="hub-step-about">{s.does}</span>
       {last && (
@@ -392,34 +685,71 @@ export const HandoffLegend = () => (
   </p>
 );
 
-/** A workspace: its processes, each drawn step by step, then every screen it
- * owns so a single step can be run by hand. */
-export function WorkspaceOverview({ id }: { id: WorkspaceId }) {
+/** A workspace: a header (caption, pixel title, purpose, status line, the drawing in its figure box), an Ask ARP card
+ * with the Orb for those who may ask, then its processes as panels, each drawn step by step. */
+export function WorkspaceOverview({ id, onAsk }: { id: WorkspaceId; onAsk?: (question: string) => void }) {
   const w = WORKSPACES.find((x) => x.id === id)!;
   const { runs, error } = useRuns();
   const { flow, error: flowError } = useHouseFlow();
   const usesFlow = w.processes.some((p) => p.steps.some((s) => s.stage));
   const activity = useActivity();
-  // The header drawing lights up like the workspace's start-page card: waiting, running, or not at all.
-  const tone = cardView(w, runs, flow, new Date()).status.tone;
+  // The header lights up like the workspace's start-page card: waiting, running, or not at all.
+  const { word, tone, detail } = cardView(w, runs, flow, new Date()).status;
+  const shown = (tone === "now" && runningDetail(w, runs, flow, true)) || detail;
+  const lit = tone === "wait" ? "wait" : tone === "now" ? "now" : null;
+  const ask = askBox(w, onAsk !== undefined);
 
   return (
-    <div className="page hub">
+    <div className={`page hub hub-ws${ask ? " hub-ws-ask" : ""}`}>
+      <p className="hub-ws-cap">{workspaceCaption(w)}</p>
       <h1>{w.name}</h1>
       <p className="help-text">{w.purpose}</p>
-      <WorkspaceDrawing id={w.id} accent={tone === "wait" ? "wait" : tone === "now" ? "now" : null} />
-      {error && <p className="error-text" role="alert">Runs could not be loaded: {error}. Step states are unknown until the backend responds.</p>}
-      {usesFlow && flowError && <p className="error-text" role="alert">The stewardship flow could not be loaded: {flowError}. Stage numbers are unknown.</p>}
-      {failedProcesses(w, runs, flow, activity).map((title) => (
-        <p key={title} className="hub-failed-line">
-          Last run failed: {title}. <a href="#/history">Open Run history →</a>
-        </p>
-      ))}
-      {w.processes.map((p) => (
-        <ProcessFlow key={p.id} p={p} runs={runs} flow={flow} activity={activity} />
-      ))}
-      <HandoffLegend />
+      <p className="hub-ws-status" data-ws-status>
+        <span className={`hub-mark hub-mark-${tone}`} aria-hidden />
+        <span className={`hub-status-${tone}`}>{word}</span> {shown && <span className="hub-status-detail">{shown}</span>}
+      </p>
+      <div className="hub-ws-fig" data-tone={lit ?? "none"}>
+        <WorkspaceDrawing id={w.id} accent={lit} known={runs !== null && (flow !== null || flowError !== null)} />
+      </div>
+      {ask && <WorkspaceAsk label={ask.label} onAsk={onAsk!} />}
+      <div className="hub-ws-body">
+        {error && <p className="error-text" role="alert">Runs could not be loaded: {error}. Step states are unknown until the backend responds.</p>}
+        {usesFlow && flowError && <p className="error-text" role="alert">The stewardship flow could not be loaded: {flowError}. Stage numbers are unknown.</p>}
+        {failedProcesses(w, runs, flow, activity).map((title) => (
+          <p key={title} className="hub-failed-line">
+            Last run failed: {title}. <a href="#/history">Open Run history →</a>
+          </p>
+        ))}
+        {w.processes.map((p) => (
+          <ProcessFlow key={p.id} p={p} runs={runs} flow={flow} activity={activity} flowSettled={flow !== null || flowError !== null} runsSettled={runs !== null || error !== null} />
+        ))}
+        <HandoffLegend />
+      </div>
     </div>
+  );
+}
+
+/** Ask ARP inside a workspace: the Orb and one question box. Enter sends the trimmed question, as typed, as a new ask
+ * thread on the Agent screen; an empty box sends nothing. */
+function WorkspaceAsk({ label, onAsk }: { label: string; onAsk: (question: string) => void }) {
+  const [text, setText] = useState("");
+  return (
+    <aside className="hub-ask" aria-label="Ask ARP">
+      <div className="hub-ask-stage">
+        <span className="hub-ask-cap" aria-hidden="true">Ask ARP</span>
+        <Orb place="workspace" label />
+      </div>
+      <form
+        className="hub-ask-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const q = text.trim();
+          if (q) onAsk(q);
+        }}
+      >
+        <input type="text" aria-label={label} placeholder={label} value={text} onChange={(e) => setText(e.target.value)} autoComplete="off" enterKeyHint="send" />
+      </form>
+    </aside>
   );
 }
 

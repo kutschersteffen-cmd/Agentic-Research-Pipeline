@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Modal } from "./Modal";
 
-export type PaletteItem = { label: string; hint?: string; href: string };
+import type { PaletteItem } from "../lib/commandPalette";
+export type { PaletteItem };
 
 /** Ctrl/⌘K: type part of a screen's name, Enter to go there. Every word
  * typed must appear in the label or its hint, in any order. With `onAsk`, a last
@@ -20,7 +21,7 @@ export function CommandPalette({ items, onClose, onAsk }: { items: PaletteItem[]
   const question = query.trim();
   const askRow = onAsk && question ? matches.length : -1;
   const count = matches.length + (askRow >= 0 ? 1 : 0);
-  const current = Math.min(index, count - 1);
+  const current = Math.max(0, Math.min(index, count - 1));
 
   function ask() {
     onClose();
@@ -50,10 +51,11 @@ export function CommandPalette({ items, onClose, onAsk }: { items: PaletteItem[]
           setIndex(0);
         }}
         onKeyDown={(e) => {
-          if (e.key === "ArrowDown") setIndex(Math.min(current + 1, count - 1));
+          if (e.key === "ArrowDown") setIndex(count ? Math.min(current + 1, count - 1) : 0);
           else if (e.key === "ArrowUp") setIndex(Math.max(current - 1, 0));
           else if (e.key === "Enter") {
-            if (current === askRow) ask();
+            if (count === 0) { e.preventDefault(); return; }
+            if (askRow >= 0 && current === askRow) ask();
             else go(matches[current]);
           }
           else return;
@@ -63,7 +65,7 @@ export function CommandPalette({ items, onClose, onAsk }: { items: PaletteItem[]
       <ul className="palette-list" id="palette-list" role="listbox" aria-label="Screens">
         {matches.map((it, i) => (
           <li
-            key={it.href}
+            key={`${i}:${it.href}`}
             id={`palette-${i}`}
             role="option"
             aria-selected={i === current}

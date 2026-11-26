@@ -7,6 +7,7 @@ internal ranges. Pinning the resolved IP in the transport is a follow-up (spec s
 """
 from __future__ import annotations
 
+import asyncio
 import ipaddress
 import socket
 from urllib.parse import urlparse
@@ -67,7 +68,7 @@ async def ssrf_guard_request_hook(request: httpx.Request) -> None:
     redirect. Pass this to every httpx.AsyncClient that fetches a URL not
     hardcoded by this app (a taxonomy source, a company website, a
     discovered document link)."""
-    assert_safe_fetch_target(request.url)
+    await asyncio.to_thread(assert_safe_fetch_target, request.url)
 
 
 def ssrf_guard_sync_request_hook(request: httpx.Request) -> None:

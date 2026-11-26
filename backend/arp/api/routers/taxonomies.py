@@ -9,6 +9,7 @@ from starlette.concurrency import run_in_threadpool
 
 from arp.api.auth import Principal, current_user
 from arp.api.deps import get_llm_client, get_registry, get_taxonomy_store, settings_dep
+from arp.api.saved_universe import load_saved_universe
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
 from arp.discovery.site_finder import SearchReport, build_web_search_client
@@ -29,7 +30,6 @@ from arp.schemas.taxonomy import DerivationMethod, Taxonomy, TaxonomyComparison,
 from arp.schemas.taxonomy_sources import SourceCandidate
 from arp.schemas.thematic import ThemeDefinition
 from arp.storage.taxonomy_store import TaxonomyStore
-from arp.universe import load_company_universe
 
 logger = logging.getLogger(__name__)
 
@@ -145,7 +145,7 @@ async def create_taxonomy(
     elif method in (DerivationMethod.MANUAL, DerivationMethod.MERGED) and req.theme is None:
         raise HTTPException(400, "Provide `theme` (e.g. the output of POST /api/taxonomies/merge, reviewed and edited).")
 
-    companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
+    companies = req.companies or (load_saved_universe(req.universe_path, settings) if req.universe_path else None)
 
     # A theme drafted earlier (Thematic Universe's "Decompose") is stored as it is, without another model call.
     llm = None if method == DerivationMethod.LLM_DRAFT and req.theme is not None else get_llm_client()

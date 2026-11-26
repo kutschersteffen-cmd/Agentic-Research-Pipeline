@@ -7,7 +7,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from pydantic import BaseModel
 
-from arp.api.deps import settings_dep
+from arp.api.deps import read_capped, settings_dep
 from arp.config import Settings
 from arp.research.taxonomy_sources.etf_holdings import load_universe_from_holdings
 from arp.schemas.common import CompanyRef
@@ -32,7 +32,7 @@ async def upload_universe(file: UploadFile, settings: Settings = Depends(setting
     dest_dir = settings.runs_dir / "_universes"
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest_path = dest_dir / safe_name
-    contents = await file.read()
+    contents = await read_capped(file, settings)
     # Parse a temp copy first, so a rejected upload leaves no file behind.
     tmp_path = dest_dir / f".{safe_name}.part{dest_path.suffix}"
     tmp_path.write_bytes(contents)
@@ -60,7 +60,7 @@ async def raw_upload(file: UploadFile, settings: Settings = Depends(settings_dep
     dest_dir = settings.runs_dir / "_universes"
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest_path = dest_dir / f"_raw_{safe_name}"
-    dest_path.write_bytes(await file.read())
+    dest_path.write_bytes(await read_capped(file, settings))
     return {"path": str(dest_path)}
 
 
@@ -82,7 +82,7 @@ async def universe_from_holdings(file: UploadFile, settings: Settings = Depends(
     dest_dir = settings.runs_dir / "_universes"
     dest_dir.mkdir(parents=True, exist_ok=True)
     raw_path = dest_dir / f"_raw_holdings_{safe_name}"
-    raw_path.write_bytes(await file.read())
+    raw_path.write_bytes(await read_capped(file, settings))
 
     companies = load_universe_from_holdings(raw_path)
     saved_path = dest_dir / f"{raw_path.stem}_universe.json"
@@ -102,7 +102,7 @@ class FromCompaniesRequest(BaseModel):
 
 
 @router.post("/from-companies")
-async def universe_from_companies(req: FromCompaniesRequest, settings: Settings = Depends(settings_dep)) -> dict:
+def universe_from_companies(req: FromCompaniesRequest, settings: Settings = Depends(settings_dep)) -> dict:
     """Saves an already-in-hand company list (e.g. the matched companies
     from a completed thematic run, filtered down to a verdict/exposure
     subset in the UI) as a reusable universe file -- the bridge from a

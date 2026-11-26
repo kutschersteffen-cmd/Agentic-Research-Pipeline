@@ -169,12 +169,14 @@ def _find_match(
         return None
     nq = _normalize(quote)
     # Short quotes (< SHORT_QUOTE_CHARS normalised chars): numeric evidence must carry
-    # its label too (bare "42" is rejected); non-numeric evidence ("Yes") may ground
-    # by exact/normalised match only, and must hold a word of 2+ letters ("-" never
-    # grounds). Neither ever takes the fuzzy path.
-    if len(nq) < SHORT_QUOTE_CHARS and re.search(r"\d", nq) and not re.search(r"[a-z]{3,}", nq):
+    # its label too, a word of 3+ letters of any script, or of 2+ CJK letters ("売上 42");
+    # bare "42" is rejected. Non-numeric evidence ("Yes", "Да") may ground by
+    # exact/normalised match only, and must hold a word of 2+ letters of any script
+    # ("-" never grounds). Neither ever takes the fuzzy path.
+    # [^\W\d_] = a letter of any script; the CJK pair must be letters too (not "・" punctuation).
+    if len(nq) < SHORT_QUOTE_CHARS and re.search(r"\d", nq) and not re.search(r"[^\W\d_]{3,}|(?:(?=[^\W\d_])[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uac00-\ud7af]){2}", nq):
         return None
-    if len(nq) < SHORT_QUOTE_CHARS and not re.search(r"\d", nq) and not re.search(r"[a-z]{2,}", nq):
+    if len(nq) < SHORT_QUOTE_CHARS and not re.search(r"\d", nq) and not re.search(r"[^\W\d_]{2,}", nq):
         return None  # "-" or "n/a"-style punctuation is not evidence; "Yes" still is
     if within is None:
         return _find_in_span(quote, source_text, fuzzy_threshold, 0, len(source_text))

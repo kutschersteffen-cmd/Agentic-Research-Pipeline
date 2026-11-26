@@ -65,11 +65,13 @@ export default function RuleGraphEditor({
   const current = graph ?? (tiers ? TIER_STARTER : STARTER);
   const [outcomes, setOutcomes] = useState<RowOutcome[]>([]);
   const [trace, setTrace] = useState<Simulation | undefined>();
-  const [traceRow, setTraceRow] = useState(0);
+  const [pickedRow, setTraceRow] = useState(0);
   const [engine, setEngine] = useState<"loading" | "ready" | string>("loading");
   const [elapsed, setElapsed] = useState<number | null>(null);
 
   const inputs = useMemo(() => (tiers ? (result?.tier_inputs ?? []) : dataset.rule_inputs), [tiers, result, dataset]);
+  // The picked row can be past the end once the rows shrink: trace the last one instead.
+  const traceRow = Math.max(0, Math.min(pickedRow, inputs.length - 1));
   const labels = dataset.preview.map((row, i) => (labelColumn && row[labelColumn]) || `Row ${i + 1}`);
   const blocked = current.nodes.filter((n) => !ALLOWED_NODES.has(n.type)).map((n) => n.name || n.type);
   const inputKeys = useMemo(() => new Set(inputs[0] ? Object.keys(inputs[0]) : []), [inputs]);

@@ -2459,7 +2459,7 @@
       "additionalProperties": {
        "type": "string"
       },
-      "description": "characteristic_name -> path returned by POST .../datasets/characteristics/{name}.",
+      "description": "characteristic_name -> file name returned by POST .../datasets/characteristics/{name}.",
       "title": "Characteristics Refs",
       "type": "object"
      },
@@ -2491,7 +2491,7 @@
       "type": "string"
      },
      "prices_ref": {
-      "description": "Path returned by POST .../datasets/prices.",
+      "description": "File name returned by POST .../datasets/prices.",
       "title": "Prices Ref",
       "type": "string"
      },
@@ -3583,7 +3583,8 @@
     },
     "required": [
      "company_id",
-     "doc_type"
+     "doc_type",
+     "file"
     ],
     "title": "Body_upload_document_api_documents_upload_post",
     "type": "object"
@@ -8971,6 +8972,44 @@
     "title": "DatasetSummary",
     "type": "object"
    },
+   "DatasetUploadResponse": {
+    "properties": {
+     "first_date": {
+      "title": "First Date",
+      "type": "string"
+     },
+     "last_date": {
+      "title": "Last Date",
+      "type": "string"
+     },
+     "ref": {
+      "description": "Stored file name; pass it back as prices_ref or a characteristics_refs value.",
+      "title": "Ref",
+      "type": "string"
+     },
+     "rows": {
+      "title": "Rows",
+      "type": "integer"
+     },
+     "tickers": {
+      "description": "The header's ticker names, in file order.",
+      "items": {
+       "type": "string"
+      },
+      "title": "Tickers",
+      "type": "array"
+     }
+    },
+    "required": [
+     "ref",
+     "tickers",
+     "rows",
+     "first_date",
+     "last_date"
+    ],
+    "title": "DatasetUploadResponse",
+    "type": "object"
+   },
    "DecarbonisationTrajectory": {
     "description": "The EU PAB/CTB-shaped constraint, and the only part of the stack\nwhose result depends on prior reviews.\n\nTwo reductions bind at once and one of them moves: `annual_reduction_rate`\ndecays geometrically from a *fixed base*, while\n`universe_reduction_pct` is measured against the investable universe as\nit stands at *this* review. The engine takes whichever is tighter and\nrecords which one bound.\n\n`compensate_missed_targets` implements Article 8 of Regulation (EU)\n2020/1818: a year in which the target was missed is owed, and the\nshortfall is carried into the next review's target.",
     "properties": {
@@ -9713,6 +9752,444 @@
      }
     },
     "title": "DesignResult",
+    "type": "object"
+   },
+   "DeskChatCreated": {
+    "properties": {
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "title",
+     "created_at"
+    ],
+    "title": "DeskChatCreated",
+    "type": "object"
+   },
+   "DeskChatIn": {
+    "properties": {
+     "title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Title"
+     }
+    },
+    "title": "DeskChatIn",
+    "type": "object"
+   },
+   "DeskChatListItem": {
+    "properties": {
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "turns": {
+      "title": "Turns",
+      "type": "integer"
+     },
+     "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "title",
+     "updated_at",
+     "turns"
+    ],
+    "title": "DeskChatListItem",
+    "type": "object"
+   },
+   "DeskChatOut": {
+    "properties": {
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "scope": {
+      "items": {
+       "$ref": "#/components/schemas/DeskScopeItem"
+      },
+      "title": "Scope",
+      "type": "array"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "turns": {
+      "items": {
+       "$ref": "#/components/schemas/DeskTurnSummary"
+      },
+      "title": "Turns",
+      "type": "array"
+     }
+    },
+    "required": [
+     "id",
+     "title",
+     "created_at",
+     "scope",
+     "turns"
+    ],
+    "title": "DeskChatOut",
+    "type": "object"
+   },
+   "DeskCompanies": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/DeskCompany"
+      },
+      "title": "Items",
+      "type": "array"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "total",
+     "items"
+    ],
+    "title": "DeskCompanies",
+    "type": "object"
+   },
+   "DeskCompany": {
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "reports": {
+      "title": "Reports",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "company_id",
+     "name",
+     "reports"
+    ],
+    "title": "DeskCompany",
+    "type": "object"
+   },
+   "DeskScopeIn": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/DeskScopeItemIn"
+      },
+      "title": "Items",
+      "type": "array"
+     }
+    },
+    "required": [
+     "items"
+    ],
+    "title": "DeskScopeIn",
+    "type": "object"
+   },
+   "DeskScopeItem": {
+    "properties": {
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "ref": {
+      "title": "Ref",
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind",
+     "ref",
+     "label"
+    ],
+    "title": "DeskScopeItem",
+    "type": "object"
+   },
+   "DeskScopeItemIn": {
+    "properties": {
+     "kind": {
+      "enum": [
+       "company",
+       "universe",
+       "run"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "ref": {
+      "title": "Ref",
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind",
+     "ref"
+    ],
+    "title": "DeskScopeItemIn",
+    "type": "object"
+   },
+   "DeskScopeOut": {
+    "properties": {
+     "scope": {
+      "items": {
+       "$ref": "#/components/schemas/DeskScopeItem"
+      },
+      "title": "Scope",
+      "type": "array"
+     }
+    },
+    "required": [
+     "scope"
+    ],
+    "title": "DeskScopeOut",
+    "type": "object"
+   },
+   "DeskStage": {
+    "properties": {
+     "detail": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Detail"
+     },
+     "ms": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ms"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name",
+     "status",
+     "ms",
+     "detail"
+    ],
+    "title": "DeskStage",
+    "type": "object"
+   },
+   "DeskTurnIn": {
+    "properties": {
+     "mode": {
+      "default": "quick",
+      "enum": [
+       "quick",
+       "thorough"
+      ],
+      "title": "Mode",
+      "type": "string"
+     },
+     "question": {
+      "title": "Question",
+      "type": "string"
+     }
+    },
+    "required": [
+     "question"
+    ],
+    "title": "DeskTurnIn",
+    "type": "object"
+   },
+   "DeskTurnOut": {
+    "properties": {
+     "answer": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Answer"
+     },
+     "chat_id": {
+      "title": "Chat Id",
+      "type": "integer"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "finished_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Finished At"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "mode": {
+      "title": "Mode",
+      "type": "string"
+     },
+     "question": {
+      "title": "Question",
+      "type": "string"
+     },
+     "sources": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Sources",
+      "type": "array"
+     },
+     "stages": {
+      "items": {
+       "$ref": "#/components/schemas/DeskStage"
+      },
+      "title": "Stages",
+      "type": "array"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "chat_id",
+     "question",
+     "mode",
+     "status",
+     "error",
+     "created_at",
+     "finished_at",
+     "stages",
+     "sources",
+     "answer"
+    ],
+    "title": "DeskTurnOut",
+    "type": "object"
+   },
+   "DeskTurnStarted": {
+    "properties": {
+     "turn_id": {
+      "title": "Turn Id",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "turn_id"
+    ],
+    "title": "DeskTurnStarted",
+    "type": "object"
+   },
+   "DeskTurnSummary": {
+    "properties": {
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "mode": {
+      "title": "Mode",
+      "type": "string"
+     },
+     "question": {
+      "title": "Question",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "question",
+     "mode",
+     "status",
+     "created_at"
+    ],
+    "title": "DeskTurnSummary",
     "type": "object"
    },
    "Dimension": {
@@ -11643,6 +12120,31 @@
       "title": "Label",
       "type": "string"
      },
+     "miniapp_asks": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Miniapp Asks"
+     },
+     "miniapp_html": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Miniapp Html"
+     },
      "model": {
       "anyOf": [
        {
@@ -11660,6 +12162,27 @@
      },
      "result": {
       "title": "Result"
+     },
+     "source_ask": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/SourceAsk"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "source_ask_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Ask Id"
      },
      "status": {
       "enum": [
@@ -11691,9 +12214,30 @@
      "created_at",
      "accepted_by",
      "accepted_at",
-     "label"
+     "label",
+     "source_ask_id",
+     "source_ask",
+     "miniapp_html",
+     "miniapp_asks"
     ],
     "title": "Exploration",
+    "type": "object"
+   },
+   "ExplorationPlanRequest": {
+    "properties": {
+     "brief": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Brief"
+     }
+    },
+    "title": "ExplorationPlanRequest",
     "type": "object"
    },
    "ExplorationRequest": {
@@ -11702,6 +12246,17 @@
       "minLength": 1,
       "title": "Question",
       "type": "string"
+     },
+     "source_ask_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Ask Id"
      }
     },
     "required": [
@@ -19746,6 +20301,29 @@
     "title": "RedlineOut",
     "type": "object"
    },
+   "RefineDocument": {
+    "properties": {
+     "doc_id": {
+      "title": "Doc Id",
+      "type": "string"
+     },
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind",
+     "doc_id",
+     "title"
+    ],
+    "title": "RefineDocument",
+    "type": "object"
+   },
    "RefineHistoryItem": {
     "properties": {
      "message": {
@@ -19793,6 +20371,45 @@
      "reason"
     ],
     "title": "RefineNotChanged",
+    "type": "object"
+   },
+   "RefineThread": {
+    "properties": {
+     "doc_id": {
+      "title": "Doc Id",
+      "type": "string"
+     },
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     },
+     "last_turn_at": {
+      "format": "date-time",
+      "title": "Last Turn At",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "turns": {
+      "title": "Turns",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "kind",
+     "doc_id",
+     "title",
+     "status",
+     "last_turn_at",
+     "turns"
+    ],
+    "title": "RefineThread",
     "type": "object"
    },
    "RefineTurn": {
@@ -24410,6 +25027,24 @@
      "datasets"
     ],
     "title": "SnapshotManifest",
+    "type": "object"
+   },
+   "SourceAsk": {
+    "properties": {
+     "question": {
+      "title": "Question",
+      "type": "string"
+     },
+     "thread_id": {
+      "title": "Thread Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "question",
+     "thread_id"
+    ],
+    "title": "SourceAsk",
     "type": "object"
    },
    "SourceCandidate": {
@@ -31190,8 +31825,32 @@
    }
   },
   "/api/agent/explorations": {
+   "get": {
+    "description": "Every exploration, newest first.",
+    "operationId": "list_explorations_api_agent_explorations_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/Exploration"
+         },
+         "title": "Response List Explorations Api Agent Explorations Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Explorations",
+    "tags": [
+     "agent"
+    ]
+   },
    "post": {
-    "description": "Runs the question's code in the sandbox; answers 200 with the stored exploration whether it ran or failed.",
+    "description": "Runs the question's code in the sandbox; answers 200 with the stored exploration whether it ran or failed.\nA `source_ask_id` that names no ask answers 404 and runs nothing.",
     "operationId": "create_exploration_api_agent_explorations_post",
     "requestBody": {
      "content": {
@@ -31231,9 +31890,199 @@
     ]
    }
   },
+  "/api/agent/explorations/{exploration_id}": {
+   "get": {
+    "operationId": "get_exploration_api_agent_explorations__exploration_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "exploration_id",
+      "required": true,
+      "schema": {
+       "title": "Exploration Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Exploration"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Exploration",
+    "tags": [
+     "agent"
+    ]
+   }
+  },
+  "/api/agent/explorations/{exploration_id}/accept": {
+   "post": {
+    "description": "A person accepts the exploration's result; its label becomes `accepted`. Only a `done` exploration has a result.",
+    "operationId": "accept_exploration_api_agent_explorations__exploration_id__accept_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "exploration_id",
+      "required": true,
+      "schema": {
+       "title": "Exploration Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Exploration"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Accept Exploration",
+    "tags": [
+     "agent"
+    ]
+   }
+  },
+  "/api/agent/explorations/{exploration_id}/miniapp": {
+   "post": {
+    "description": "\"Show as mini-app\" (and \"Regenerate mini-app\"): one model call writes a script-free page and follow-up questions\nfor the done exploration's result, cleaned and stored on it.",
+    "operationId": "create_miniapp_api_agent_explorations__exploration_id__miniapp_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "exploration_id",
+      "required": true,
+      "schema": {
+       "title": "Exploration Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Exploration"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Create Miniapp",
+    "tags": [
+     "agent"
+    ]
+   }
+  },
+  "/api/agent/explorations/{exploration_id}/plan": {
+   "post": {
+    "description": "\"Turn into a plan…\" (D9): the planner drafts a plan from an accepted exploration. The plan stays a draft, so\nnothing runs until a person approves it. Answers the plan as `GET /api/plans/{id}` does.",
+    "operationId": "plan_from_exploration_api_agent_explorations__exploration_id__plan_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "exploration_id",
+      "required": true,
+      "schema": {
+       "title": "Exploration Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "anyOf": [
+         {
+          "$ref": "#/components/schemas/ExplorationPlanRequest"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Req"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Plan From Exploration Api Agent Explorations  Exploration Id  Plan Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Plan From Exploration",
+    "tags": [
+     "agent"
+    ]
+   }
+  },
   "/api/agent/inbox": {
    "get": {
-    "description": "Draft plans and calls awaiting review, oldest first (a plan by its `created_at`, a call by its `started_at`).",
+    "description": "Draft plans, calls awaiting review and `done` explorations not yet accepted, oldest first (a plan or an exploration\nby its `created_at`, a call by its `started_at`).",
     "operationId": "inbox_api_agent_inbox_get",
     "responses": {
      "200": {
@@ -34734,6 +35583,313 @@
     "summary": "Match Templates",
     "tags": [
      "decision"
+    ]
+   }
+  },
+  "/api/desk/chats": {
+   "get": {
+    "operationId": "list_chats_api_desk_chats_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/DeskChatListItem"
+         },
+         "title": "Response List Chats Api Desk Chats Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Chats",
+    "tags": [
+     "desk"
+    ]
+   },
+   "post": {
+    "operationId": "create_chat_api_desk_chats_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DeskChatIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DeskChatCreated"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Create Chat",
+    "tags": [
+     "desk"
+    ]
+   }
+  },
+  "/api/desk/chats/{chat_id}": {
+   "get": {
+    "operationId": "get_chat_api_desk_chats__chat_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "chat_id",
+      "required": true,
+      "schema": {
+       "title": "Chat Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DeskChatOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Chat",
+    "tags": [
+     "desk"
+    ]
+   }
+  },
+  "/api/desk/chats/{chat_id}/scope": {
+   "put": {
+    "operationId": "put_scope_api_desk_chats__chat_id__scope_put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "chat_id",
+      "required": true,
+      "schema": {
+       "title": "Chat Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DeskScopeIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DeskScopeOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Put Scope",
+    "tags": [
+     "desk"
+    ]
+   }
+  },
+  "/api/desk/chats/{chat_id}/turns": {
+   "post": {
+    "operationId": "post_turn_api_desk_chats__chat_id__turns_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "chat_id",
+      "required": true,
+      "schema": {
+       "title": "Chat Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DeskTurnIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "202": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DeskTurnStarted"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Turn",
+    "tags": [
+     "desk"
+    ]
+   }
+  },
+  "/api/desk/companies": {
+   "get": {
+    "operationId": "list_companies_api_desk_companies_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "q",
+      "required": false,
+      "schema": {
+       "default": "",
+       "title": "Q",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 20,
+       "maximum": 100,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DeskCompanies"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Companies",
+    "tags": [
+     "desk"
+    ]
+   }
+  },
+  "/api/desk/turns/{turn_id}": {
+   "get": {
+    "operationId": "get_turn_api_desk_turns__turn_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "turn_id",
+      "required": true,
+      "schema": {
+       "title": "Turn Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DeskTurnOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Turn",
+    "tags": [
+     "desk"
     ]
    }
   },
@@ -42681,6 +43837,58 @@
     ]
    }
   },
+  "/api/refine/documents": {
+   "get": {
+    "description": "Every RFP project, then every report with a deck, each group newest first. Any signed-in role.",
+    "operationId": "get_documents_api_refine_documents_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/RefineDocument"
+         },
+         "title": "Response Get Documents Api Refine Documents Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Get Documents",
+    "tags": [
+     "refine"
+    ]
+   }
+  },
+  "/api/refine/threads": {
+   "get": {
+    "description": "One row per document with at least one turn, newest first by its newest turn. Any signed-in role.",
+    "operationId": "get_threads_api_refine_threads_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/RefineThread"
+         },
+         "title": "Response Get Threads Api Refine Threads Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Get Threads",
+    "tags": [
+     "refine"
+    ]
+   }
+  },
   "/api/refine/turns/{turn_id}": {
    "get": {
     "operationId": "get_turn_api_refine_turns__turn_id__get",
@@ -42730,19 +43938,19 @@
     "parameters": [
      {
       "in": "path",
-      "name": "doc_id",
+      "name": "kind",
       "required": true,
       "schema": {
-       "title": "Doc Id",
+       "title": "Kind",
        "type": "string"
       }
      },
      {
       "in": "path",
-      "name": "kind",
+      "name": "doc_id",
       "required": true,
       "schema": {
-       "title": "Kind",
+       "title": "Doc Id",
        "type": "string"
       }
      }
@@ -42783,19 +43991,19 @@
     "parameters": [
      {
       "in": "path",
-      "name": "doc_id",
+      "name": "kind",
       "required": true,
       "schema": {
-       "title": "Doc Id",
+       "title": "Kind",
        "type": "string"
       }
      },
      {
       "in": "path",
-      "name": "kind",
+      "name": "doc_id",
       "required": true,
       "schema": {
-       "title": "Kind",
+       "title": "Doc Id",
        "type": "string"
       }
      }
@@ -42844,19 +44052,19 @@
     "parameters": [
      {
       "in": "path",
-      "name": "doc_id",
+      "name": "kind",
       "required": true,
       "schema": {
-       "title": "Doc Id",
+       "title": "Kind",
        "type": "string"
       }
      },
      {
       "in": "path",
-      "name": "kind",
+      "name": "doc_id",
       "required": true,
       "schema": {
-       "title": "Kind",
+       "title": "Doc Id",
        "type": "string"
       }
      }
@@ -43233,11 +44441,18 @@
      "content": {
       "application/json": {
        "schema": {
-        "$ref": "#/components/schemas/ApproveSpecRequest"
+        "anyOf": [
+         {
+          "$ref": "#/components/schemas/ApproveSpecRequest"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Req"
        }
       }
-     },
-     "required": true
+     }
     },
     "responses": {
      "200": {
@@ -43326,6 +44541,7 @@
   },
   "/api/replication/specs/{spec_run_id}/datasets/characteristics/{name}": {
    "post": {
+    "description": "`name` may hold `/` (\"B/M\"); only the stored file name is slugged, the name itself is not changed.",
     "operationId": "upload_characteristics_dataset_api_replication_specs__spec_run_id__datasets_characteristics__name__post",
     "parameters": [
      {
@@ -43362,9 +44578,7 @@
       "content": {
        "application/json": {
         "schema": {
-         "additionalProperties": true,
-         "title": "Response Upload Characteristics Dataset Api Replication Specs  Spec Run Id  Datasets Characteristics  Name  Post",
-         "type": "object"
+         "$ref": "#/components/schemas/DatasetUploadResponse"
         }
        }
       },
@@ -43416,9 +44630,7 @@
       "content": {
        "application/json": {
         "schema": {
-         "additionalProperties": true,
-         "title": "Response Upload Price Dataset Api Replication Specs  Spec Run Id  Datasets Prices Post",
-         "type": "object"
+         "$ref": "#/components/schemas/DatasetUploadResponse"
         }
        }
       },
@@ -43858,6 +45070,93 @@
      }
     },
     "summary": "Get Report",
+    "tags": [
+     "reporting"
+    ]
+   }
+  },
+  "/api/reports/{report_id}/deck": {
+   "get": {
+    "operationId": "get_deck_api_reports__report_id__deck_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "title": "Report Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Deck Api Reports  Report Id  Deck Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Deck",
+    "tags": [
+     "reporting"
+    ]
+   }
+  },
+  "/api/reports/{report_id}/deck/html": {
+   "get": {
+    "description": "The deck as the house HTML, for the Refine live view; the same renderer the export starts from.",
+    "operationId": "get_deck_html_api_reports__report_id__deck_html_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "title": "Report Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "text/html": {
+        "schema": {
+         "type": "string"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Deck Html",
     "tags": [
      "reporting"
     ]

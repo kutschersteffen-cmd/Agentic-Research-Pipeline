@@ -450,13 +450,27 @@ Create the sign-in tokens once, add the two lines the command prints to
 ```bash
 scripts/launch_jupyter.sh users   # writes config/users.json: two approvers, prints their tokens
 scripts/launch_jupyter.sh up      # migrates the database, builds the frontend if it is stale, prints the URL
-scripts/launch_jupyter.sh check   # 7 lines; each should start with "ok" (or "skip" for an unset GPU service)
+scripts/launch_jupyter.sh check   # 8 lines; each should start with "ok" (or "skip" for an unset GPU service)
 scripts/launch_jupyter.sh down
 ```
 
 `up` prints the path to open, `/user/<id>/proxy/8000/`, after your Jupyter
 host name. The API serves the built frontend itself (`ARP_FRONTEND_DIST`), and
 the build is relative (`VITE_API_BASE=.`), so it works under that prefix.
+
+**GPU workspace.** The torch models (NLI, taggers, GLiNER, FinBERT) and docling
+use the GPU on their own: torch from PyPI on Linux already ships CUDA. For GPU
+embeddings and rerank, run this once inside the `arp` environment:
+
+```bash
+pip uninstall -y onnxruntime && pip install onnxruntime-gpu
+```
+
+Run it again after any later `pip install -e backend` (that reinstalls the CPU
+`onnxruntime`). Then `scripts/launch_jupyter.sh check` should show
+`ok local models: models on cuda; embeddings on cuda`. `ARP_MODEL_DEVICE` picks
+the device for the models the backend loads itself: `auto` (default: GPU when
+visible, else CPU), `cpu`, or `cuda` (fails with a clear error when there is no GPU).
 
 `check` makes one real call on `ARP_LLM_MODEL` and one on
 `ARP_LLM_VERIFIER_MODEL` with no other provider available, so a model your

@@ -64,14 +64,18 @@ export function ArgusFlow({ flowId, step: urlStep }: { flowId: string; step: num
     if (urlStep === null && flow) window.location.replace(flowHref(flowId, flow.step));
   }, [urlStep, flow, flowId]);
 
+  // bumped at the start and end of every change, so a background read that began before it is dropped
+  const changes = useRef(0);
   // Read again on every step change: a run that finished on step 4 changes what step 3 must show (the repeat
   // warning), and a stale flow let Start through to a 400 that named a list not on screen.
   useEffect(() => {
-    api.getArgusFlow(flowId).then(setFlow, (e: Error) => (/not found/i.test(e.message) ? setMissing(true) : setError(errorDetail(e))));
+    const at = changes.current;
+    api.getArgusFlow(flowId).then(
+      (f) => at === changes.current && setFlow(f),
+      (e: Error) => at === changes.current && (/not found/i.test(e.message) ? setMissing(true) : setError(errorDetail(e))),
+    );
   }, [flowId, urlStep]);
 
-  // bumped at the start and end of every change, so a background read that began before it is dropped
-  const changes = useRef(0);
   const act = useCallback(async (fn: () => Promise<Flow | void>) => {
     changes.current++;
     setBusy(true);
@@ -167,7 +171,7 @@ export function ArgusFlow({ flowId, step: urlStep }: { flowId: string; step: num
                 </tr>
               </thead>
               <tbody>
-                {flow.rows.map((r, i) => !locked && editing?.row === i && editing.name === r.name ? (
+                {flow.rows.map((r, i) => !locked && editing?.row === i && editing.name === r.name && flow.companies.some((c) => c.company_id === r.company_id) ? (
                   <EditCompanyRow
                     key={`edit:${editing.opened}`}
                     company={flow.companies.find((c) => c.company_id === r.company_id)!}

@@ -13,18 +13,22 @@ import { activatable } from "../lib/activatable";
 import { ProposedTag } from "../components/ProposedTag";
 import { ThemeLayersTable } from "../components/ThemeLayersTable";
 import { errorDetail } from "../lib/themeLayers";
-import { companies as companiesWord, savedDraftLine } from "../lib/themeBuilder";
+import { activityOptions, companies as companiesWord, savedDraftLine } from "../lib/themeBuilder";
+import { DraftInput } from "../components/DraftInput";
+import { listText, parseList } from "../lib/draftInput";
 
 const EXPOSURE_RANK: Record<string, number> = { pure_play: 3, significant: 2, minor: 1, none: 0 };
 
 interface Props {
   onSendToArgus?: (path: string) => Promise<void>;
   pendingTaxonomyId?: string | null;
+  /** Called once the pending taxonomy has been taken (loaded, or found missing), so it is not loaded again. */
+  onPendingTaxonomyTaken?: () => void;
   /** A stored run to open, from `#/theme/<run id>`. */
   initialRunId?: string | null;
 }
 
-export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, initialRunId }: Props = {}) {
+export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, onPendingTaxonomyTaken, initialRunId }: Props = {}) {
   const [name, setName] = useState("Electrification");
   const [description, setDescription] = useState(
     "The shift of energy generation, transport, industry, and buildings from fossil fuels to electricity."
@@ -58,19 +62,22 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, initialRunId }:
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
   const [savedDraft, setSavedDraft] = useState<Taxonomy | null>(null);
 
+  const [taxonomiesLoaded, setTaxonomiesLoaded] = useState(false);
   useEffect(() => {
-    api.listTaxonomies().then((res) => setTaxonomies((res as { taxonomies: Taxonomy[] }).taxonomies)).catch(() => {});
+    api.listTaxonomies().then((res) => setTaxonomies((res as { taxonomies: Taxonomy[] }).taxonomies)).catch(() => {}).finally(() => setTaxonomiesLoaded(true));
   }, []);
 
   // A taxonomy sent over from the Taxonomy Library's "Use in Thematic
   // Universe" button arrives here as an id -- load it as soon as the
   // taxonomy list itself has loaded, same as picking it from the dropdown
   // by hand.
+  // It is taken once, on the first loaded list: later list changes and later visits load nothing.
   useEffect(() => {
-    if (!pendingTaxonomyId || taxonomies.length === 0) return;
+    if (!pendingTaxonomyId || !taxonomiesLoaded) return;
     loadTaxonomyById(pendingTaxonomyId);
+    onPendingTaxonomyTaken?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingTaxonomyId, taxonomies]);
+  }, [pendingTaxonomyId, taxonomiesLoaded]);
 
   async function decompose() {
     setBusy(true);
@@ -220,7 +227,7 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, initialRunId }:
 
   function updateMappingLabels(idx: number, labelsText: string) {
     setCatalogueMappings((prev) =>
-      prev.map((m, i) => (i === idx ? { ...m, matched_labels: labelsText.split(",").map((s) => s.trim()).filter(Boolean) } : m))
+      prev.map((m, i) => (i === idx ? { ...m, matched_labels: parseList(labelsText) } : m))
     );
   }
 
@@ -383,9 +390,9 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, initialRunId }:
               </label>
               <label className="field-label">
                 Seed keywords (comma-separated)
-                <input
-                  value={a.seed_keywords.join(", ")}
-                  onChange={(e) => updateActivity(idx, { seed_keywords: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
+                <DraftInput
+                  value={listText(a.seed_keywords)}
+                  onText={(t) => updateActivity(idx, { seed_keywords: parseList(t) })}
                 />
               </label>
               <button className="link-button" onClick={() => removeActivity(idx)}>
@@ -445,7 +452,7 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, initialRunId }:
                     <td>{activityName(m.activity_id)}</td>
                     <td>{m.metric}</td>
                     <td>
-                      <input aria-label={`Matched labels for ${activityName(m.activity_id)} ${m.metric}`} value={m.matched_labels.join(", ")} onChange={(e) => updateMappingLabels(idx, e.target.value)} />
+                      <DraftInput aria-label={`Matched labels for ${activityName(m.activity_id)} ${m.metric}`} value={listText(m.matched_labels)} onText={(t) => updateMappingLabels(idx, t)} />
                     </td>
                     <td className="muted">{m.rationale}</td>
                   </tr>
@@ -471,7 +478,7 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, initialRunId }:
           <h2>4. Run progress</h2>
           <RunProgress runId={runId} onFinish={() => refreshResults().catch((e) => setError(errorDetail(e)))} />
           <div className="toolbar">
-            <button onClick={refreshResults}>Refresh results</button>
+            <button onClick={() => refreshResults().catch((e) => setError(errorDetail(e)))}>Refresh results</button>
             <FileLink url={api.exportRunCsvUrl(runId)} name={`${runId}.csv`}>
               Export CSV
             </FileLink>
@@ -487,8 +494,8 @@ export function ThemeBuilder({ onSendToArgus, pendingTaxonomyId, initialRunId }:
                 </select>
                 <select aria-label="Filter by activity" value={activityFilter} onChange={(e) => setActivityFilter(e.target.value)}>
                   <option value="all">All activities</option>
-                  {theme?.activities.map((a) => (
-                    <option key={a.activity_id} value={a.activity_id}>
+                  {activityOptions(theme, results).map((a) => (
+                    <option key={a.id} value={a.id}>
                       {a.name}
                     </option>
                   ))}

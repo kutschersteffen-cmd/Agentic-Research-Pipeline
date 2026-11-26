@@ -1,5 +1,7 @@
 import { GroundedBadge } from "./ConfidenceBadge";
 import type { ActivityDefinition, ActivityStandardsMapping } from "../types";
+import { DraftInput } from "./DraftInput";
+import { listText, parseList } from "../lib/draftInput";
 
 function CodeList({ label, codes }: { label: string; codes: { code: string; label: string }[] }) {
   if (codes.length === 0) return null;
@@ -75,9 +77,9 @@ export function ActivityEditorTable({ activities, onChange }: Props) {
           </label>
           <label className="field-label">
             Seed keywords (comma-separated)
-            <input
-              value={a.seed_keywords.join(", ")}
-              onChange={(e) => update(idx, { seed_keywords: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
+            <DraftInput
+              value={listText(a.seed_keywords)}
+              onText={(t) => update(idx, { seed_keywords: parseList(t) })}
             />
           </label>
           {a.source_citation && (

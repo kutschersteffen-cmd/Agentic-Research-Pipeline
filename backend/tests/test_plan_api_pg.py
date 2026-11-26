@@ -79,7 +79,13 @@ def test_approve_records_user(client, store):  # AC-14
     assert body["approved_at"] is not None
 
 
-def test_edit_resets_approval(client, store):  # AC-15, AC-16, AC-17
+def test_edit_resets_approval(client, store, tmp_path, monkeypatch):  # AC-15, AC-16, AC-17
+    from arp.config import get_settings
+
+    (tmp_path / "runs" / "_universes").mkdir(parents=True)  # an edited script may only name a saved universe
+    (tmp_path / "runs" / "_universes" / "u.csv").write_text("company_id,name\nA,Acme\n")
+    monkeypatch.setenv("ARP_RUNS_DIR", str(tmp_path / "runs"))
+    get_settings.cache_clear()
     plan_id = store.create("b", SCRIPT)
     client.post(f"/api/plans/{plan_id}/approve")
     edited = SCRIPT + 'universe_build(taxonomy_id="t2", source="u.csv")\n'

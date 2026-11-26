@@ -154,11 +154,13 @@ def test_ac40_survives_poll(page):  # noqa: F811
 
 
 def test_ac41_phone(page):  # noqa: F811
-    _open(page, "/#/stewardiq", 390, 844, "light")
+    _open(page, "/#/stewardiq", 390, 844)
     p = _first_open_process(page)
     _steps(p).nth(1).click()
-    lefts = [b.bounding_box()["x"] for b in p.locator(".hub-step").all()]
-    assert max(lefts) - min(lefts) <= 1, lefts
+    # process-flow-viewer D2/AC-3 (owner, 23 Nov 2026) supersedes "one left edge": on a phone the steps are one
+    # scrolling row, so they share one top edge.
+    tops = [b.bounding_box()["y"] for b in p.locator(".hub-step").all()]
+    assert max(tops) - min(tops) <= 1, tops
     link = _panel(p).get_by_role("link", name=re.compile(r"^Open "))
     assert link.bounding_box()["height"] >= 44
     assert page.evaluate("document.documentElement.scrollWidth") <= 390

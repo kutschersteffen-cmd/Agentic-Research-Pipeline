@@ -78,25 +78,16 @@ def build_steps(settings: Settings, run_store: RunStore) -> dict[str, Step]:
         from arp.db.fields import SchemaRegistry
         from arp.research.taxonomy_schema import released_run_schema
         from arp.storage.taxonomy_store import TaxonomyStore
-        from arp.universe import (
-            UniverseRejected,
-            load_company_universe,
-            not_saved_message,
-            saved_universes,
-            universe_source_path,
-        )
+        from arp.universe import load_company_universe, not_saved_message, saved_universes, universe_source_path
 
-        # shortcut: `source` is a saved universe's file name or a universe file path; portfolio ids come with the
-        # Plans page (plan task 9).
+        # shortcut: `source` is a saved universe's file name or a path inside the universes folder; portfolio ids
+        # come with the Plans page (plan task 9).
         taxonomy, schema = released_run_schema(TaxonomyStore(settings.taxonomies_dir), SchemaRegistry(settings.postgres_dsn),
                                                taxonomy_id, None)
         path = universe_source_path(settings.runs_dir, source)
-        try:
-            companies = load_company_universe(path)
-        except (OSError, UniverseRejected) as exc:
-            if path.exists():  # a real file that does not load: its own message
-                raise
-            raise ValueError(not_saved_message(source, saved_universes(settings.runs_dir))) from exc
+        if path is None:  # never read a file outside the universes folder
+            raise ValueError(not_saved_message(source, saved_universes(settings.runs_dir)))
+        companies = load_company_universe(path)
         return taxonomy, schema, path, companies
 
     def universe_start(launch_key: str | None, *, taxonomy_id: str, source: str) -> str:

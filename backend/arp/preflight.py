@@ -1,6 +1,6 @@
 """Readiness checks for a deployed ARP (`arp preflight`, `scripts/launch_jupyter.sh check`).
 
-Seven lines, always all seven, in a fixed order: `ok <name>`, `skip <name>` or `FAIL <name>: <reason>`.
+Eight lines, always all eight, in a fixed order: `ok <name>`, `skip <name>` or `FAIL <name>: <reason>`.
 The model checks make one real call on exactly the configured model: no other provider is left
 available, so a fallback cannot hide a model that does not answer.
 """
@@ -17,6 +17,7 @@ from arp.compute.client import _auth, last_error, models_configured, parse_confi
 from arp.config import Settings
 from arp.db.session import require_cutover, require_postgres
 from arp.llm.factory import build_llm_client
+from arp.models import device
 
 CHECK_TIMEOUT_S: float = 60  # a firewall that drops packets must not leave the check silent for minutes
 
@@ -29,16 +30,16 @@ def _reason(exc: BaseException) -> str:
     return (str(exc).splitlines() or [type(exc).__name__])[0][:200]
 
 
-async def _line(name: str, check: Callable[[], Awaitable[None]] | None) -> str:
+async def _line(name: str, check: Callable[[], Awaitable[str | None]] | None) -> str:
     if check is None:
         return f"skip {name}"
     try:
-        await asyncio.wait_for(check(), CHECK_TIMEOUT_S)
+        detail = await asyncio.wait_for(check(), CHECK_TIMEOUT_S)
     except TimeoutError:
         return f"FAIL {name}: no answer within {CHECK_TIMEOUT_S:g} s"
     except Exception as exc:  # noqa: BLE001 - every failure becomes its line; the later checks still run
         return f"FAIL {name}: {_reason(exc)}"
-    return f"ok {name}"
+    return f"ok {name}: {detail}" if detail else f"ok {name}"
 
 
 async def run_preflight(
@@ -83,12 +84,16 @@ async def run_preflight(
 
         return check
 
+    async def local_models() -> str:
+        return await asyncio.to_thread(device.summary)
+
     checks = [
         ("postgres", postgres),
         (f"model {settings.llm_model}", model(settings.llm_model)),
         (f"verifier {settings.llm_verifier_model}", model(settings.llm_verifier_model)),
         ("compute models", compute("models", settings.compute_models_url, models_configured)),
         ("compute parse", compute("parse", settings.compute_parse_url, parse_configured)),
+        ("local models", local_models),
         ("frontend", get(f"{base_url.rstrip('/')}/", via=local)),
         # sent as the document fetchers send it: sec.gov refuses a client without a contact User-Agent
         ("fetch", get(settings.preflight_fetch_url, lambda: {"User-Agent": settings.edgar_user_agent})),

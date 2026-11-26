@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from arp.errors import ClientInputError
 from arp.research.indirect_exposure.nace import nace_known, normalise_nace
 from arp.schemas.common import CompanyRef
+from arp.storage.safe_path import file_inside
 
 
 class UniverseRejected(ClientInputError):
@@ -111,21 +112,22 @@ def not_saved_message(source: str, names: list[str]) -> str:
             "upload one there, then name it in the brief. Saved universes: " + (", ".join(names) or "none") + ".")
 
 
-def universe_source_path(runs_dir: str | Path, source: str) -> Path:
-    """A saved universe's file name resolves to its file; anything else is a path, as before."""
-    saved = Path(runs_dir) / "_universes" / source
-    return saved if saved.is_file() else Path(source)
+def universe_source_path(runs_dir: str | Path, source: str) -> Path | None:
+    """The file a plan's universe `source` names: a file name in the universes folder, or a path to a file inside
+    it. Anything outside the universes folder is None and is never read."""
+    folder = Path(runs_dir) / "_universes"
+    return file_inside(folder / source, folder) or file_inside(source, folder)
 
 
 def universe_source_errors(runs_dir: str | Path, steps: list[dict]) -> list[str]:
-    """One line per `universe_build` call whose `source` is neither a saved universe nor an existing universe file."""
+    """One line per `universe_build` call whose `source` is neither a saved universe's name nor a saved universe file."""
     names = saved_universes(runs_dir)
+    folder = Path(runs_dir) / "_universes"
     errors = []
     for step in steps:
         source = step["params"].get("source") if step["kind"] == "universe_build" else None
         if source is None:
             continue
-        path = Path(str(source))
-        if str(source) not in names and not (path.suffix.lower() in (".json", ".csv") and path.is_file()):
+        if str(source) not in names and file_inside(str(source), folder) is None:
             errors.append(not_saved_message(str(source), names))
     return errors

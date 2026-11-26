@@ -190,3 +190,21 @@ def test_retry_without_a_kept_file_is_refused(client, flow, resumed, run_store):
     assert (r.status_code, r.json()["detail"]) == (400, "Keep at least one file in step 2.")
     assert run_store.load_manifest("extraction_r").status == "partially_completed"
     assert resumed["calls"] == []
+
+
+def test_a_launch_that_fails_leaves_the_run_as_it_was(client, flow, resumed, run_store, monkeypatch):
+    class Broken:
+        def launch(self, *a, **k):
+            raise RuntimeError("no launcher")
+
+    monkeypatch.setattr(argus_router, "get_job_launcher", lambda: Broken())
+    with pytest.raises(RuntimeError):
+        client.post(f"/api/argus/flows/{flow}/companies/aapl/retry")
+    m = run_store.load_manifest("extraction_r")
+    assert "retrying" not in m.params
+    assert m.status == "partially_completed"
+    monkeypatch.undo()
+    monkeypatch.setattr(argus_router, "resume_run", lambda *a, **k: asyncio.sleep(0))
+    r = client.post(f"/api/argus/flows/{flow}/companies/aapl/retry")
+    assert r.status_code == 200
+    assert {c["company_id"]: c["status"] for c in r.json()["companies"]}["aapl"] == "Waiting"

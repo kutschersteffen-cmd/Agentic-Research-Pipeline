@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import asyncio
-
 from fastapi import APIRouter, Depends, HTTPException
 
 from arp.agents.calibration_agent import CalibrationAgentScheduler, create_calibration_run, execute_calibration_run
 from arp.api.deps import get_calibration_scheduler, get_registry, settings_dep
+from arp.api.run_scheduling import keep_task
 from arp.config import Settings
 from arp.db.session import require_dsn
 from arp.ingestion.registry import DocumentSourceRegistry
@@ -32,7 +31,7 @@ async def start_calibration_run(
     async def _background() -> None:
         await execute_calibration_run(run_id, registry=registry, run_store=run_store)
 
-    asyncio.create_task(_background())
+    keep_task(_background())
     return {"run_id": run_id}
 
 

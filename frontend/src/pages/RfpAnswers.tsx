@@ -3,17 +3,11 @@ import { api, downloadFile } from "../api/client";
 import { ElapsedLine } from "../components/ElapsedLine";
 import { announce } from "../lib/announce";
 import { importingLine, importResultLine } from "../lib/progress";
+import { STATUS_BADGE } from "../lib/rfp";
 import { errorDetail } from "../lib/themeLayers";
 import { useMe } from "../lib/reviewer";
 import type { RfpDocument, RfpLibraryEntry, RfpProject, RfpProjectSummary, RfpQuestion } from "../types";
 
-const STATUS_BADGE: Record<string, string> = {
-  "no source": "badge badge-low",
-  drafted: "badge badge-mid",
-  edited: "badge badge-mid",
-  approved: "badge badge-high",
-  "left blank": "badge badge-neutral",
-};
 const RUNNING = new Set(["detecting", "drafting"]);
 const rank = { viewer: 0, analyst: 1, approver: 2 } as const;
 
@@ -321,6 +315,7 @@ function ProjectView({ id, onBack }: { id: number; onBack: () => void }) {
           </button>
         )}
         <button onClick={() => (unapproved > 0 ? setConfirmExport(true) : download())}>Download filled file</button>
+        <a href={`#/agent/refine/rfp/${id}`} className="button-link secondary">Refine in Agent</a>
       </div>
       {confirmExport && (
         <div className="card" role="alertdialog" aria-label="Unapproved questions">

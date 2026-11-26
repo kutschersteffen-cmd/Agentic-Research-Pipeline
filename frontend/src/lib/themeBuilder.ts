@@ -12,3 +12,14 @@ export function webSourceUrl(c: { source_filename?: string | null; source_url?: 
 
 /** "1 company", "2 companies". */
 export const companies = (n: number) => `${n} ${n === 1 ? "company" : "companies"}`;
+
+/** The "Filter by activity" choices: the theme's activities, else those found in the results. */
+export function activityOptions(
+  theme: { activities: { activity_id: string; name: string }[] } | null,
+  results: { activity_id: string; activity_name: string }[],
+): { id: string; name: string }[] {
+  if (theme) return theme.activities.map((a) => ({ id: a.activity_id, name: a.name }));
+  const seen = new Map<string, string>();
+  for (const r of results) if (!seen.has(r.activity_id)) seen.set(r.activity_id, r.activity_name);
+  return [...seen].map(([id, name]) => ({ id, name }));
+}

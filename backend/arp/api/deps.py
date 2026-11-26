@@ -5,6 +5,7 @@ from functools import lru_cache
 from typing import TYPE_CHECKING
 
 from fastapi import Depends, HTTPException, Request
+from starlette.datastructures import UploadFile
 
 from arp.agents.calibration_agent import CalibrationAgentScheduler
 from arp.agents.taxonomy_researcher import TaxonomyResearcherScheduler
@@ -55,6 +56,14 @@ if TYPE_CHECKING:
 
 def settings_dep() -> Settings:
     return get_settings()
+
+
+async def read_capped(file: UploadFile, settings: Settings) -> bytes:
+    """An upload part's bytes, or 413 once it is over `max_upload_bytes` (reads at most one byte more)."""
+    data = await file.read(settings.max_upload_bytes + 1)
+    if len(data) > settings.max_upload_bytes:
+        raise HTTPException(413, f"File is larger than the {settings.max_upload_bytes // 1_000_000} MB upload limit.")
+    return data
 
 
 def publish_store_dep(settings: Settings = Depends(settings_dep)) -> PublishStore:

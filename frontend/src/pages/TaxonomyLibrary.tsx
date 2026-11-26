@@ -18,6 +18,7 @@ import type {
 import { activatable } from "../lib/activatable";
 import { ConfirmSignedIn } from "../components/ConfirmSignedIn";
 import { TaxonomySchemaLine } from "../components/TaxonomySchemaLine";
+import { errorDetail } from "../lib/themeLayers";
 import { builtUniverseLine, fundSearchEmptyText } from "../lib/universeBuilder";
 
 const METHOD_LABELS: Record<DerivationMethod, string> = {
@@ -54,10 +55,16 @@ interface Props {
 export function TaxonomyLibrary({ onUseInTheme }: Props = {}) {
   const [sub, setSub] = useState<(typeof SUB_TABS)[number]["id"]>("library");
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
+  const [listError, setListError] = useState<string | null>(null);
 
   async function refreshLibrary() {
-    const res = (await api.listTaxonomies()) as { taxonomies: Taxonomy[] };
-    setTaxonomies(res.taxonomies);
+    try {
+      const res = (await api.listTaxonomies()) as { taxonomies: Taxonomy[] };
+      setTaxonomies(res.taxonomies);
+      setListError(null);
+    } catch (e) {
+      setListError(`The taxonomy list could not be loaded: ${errorDetail(e)}`);
+    }
   }
 
   // Reloaded on every sub-tab, so a taxonomy created elsewhere (another tab, the API) shows up in the pickers.
@@ -79,6 +86,7 @@ export function TaxonomyLibrary({ onUseInTheme }: Props = {}) {
           </button>
         ))}
       </nav>
+      {listError && <p className="error-text" role="alert">{listError}</p>}
       {sub === "library" && <LibraryView taxonomies={taxonomies} onChange={refreshLibrary} onUseInTheme={onUseInTheme} />}
       {sub === "new" && <NewTaxonomyWizard onCreated={refreshLibrary} />}
       {sub === "compare" && <CompareMergeView taxonomies={taxonomies} onSaved={refreshLibrary} />}
@@ -91,9 +99,15 @@ export function TaxonomyLibrary({ onUseInTheme }: Props = {}) {
 /** Every version of one taxonomy, latest first, each with its extraction schema line. */
 function TaxonomyVersions({ taxonomy }: { taxonomy: Taxonomy }) {
   const [versions, setVersions] = useState<Taxonomy[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   useEffect(() => {
-    api.listTaxonomyVersions(taxonomy.taxonomy_id).then((r) => setVersions([...r.versions].reverse())).catch(() => {});
+    setLoadError(null);
+    api
+      .listTaxonomyVersions(taxonomy.taxonomy_id)
+      .then((r) => setVersions([...r.versions].reverse()))
+      .catch((e) => setLoadError(`The versions could not be loaded: ${errorDetail(e)}`));
   }, [taxonomy.taxonomy_id, taxonomy.version, taxonomy.status]);
+  if (loadError) return <p className="error-text">{loadError}</p>;
   return (
     <ul className="plain-list" aria-label="Versions">
       {versions.map((v) => (
@@ -127,11 +141,13 @@ function LibraryView({
   const [useSampleStandards, setUseSampleStandards] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mappedLine, setMappedLine] = useState<string | null>(null);
 
   function open(t: Taxonomy) {
     setOpenId(openId === t.taxonomy_id ? null : t.taxonomy_id);
     setActivities(t.theme.activities);
     setError(null);
+    setMappedLine(null);
   }
 
   async function saveVersion(t: Taxonomy) {
@@ -164,12 +180,15 @@ function LibraryView({
   async function mapStandards(t: Taxonomy) {
     setBusy(true);
     setError(null);
+    setMappedLine(null);
     try {
-      await api.mapStandards(t.taxonomy_id, {
+      const saved = (await api.mapStandards(t.taxonomy_id, {
         version: t.version,
         use_sample_io: useSampleIo,
         use_sample_standards: useSampleStandards,
-      });
+      })) as Taxonomy;
+      setActivities(saved.theme.activities);
+      setMappedLine(`Standards mapped and saved as v${saved.version}.`);
       onChange();
     } catch (err) {
       setError((err as Error).message);
@@ -275,6 +294,7 @@ function LibraryView({
                         fine for testing this pipeline, not for citing. Supply a verified ARP_GICS_REFERENCE_PATH
                         before relying on sub-industry-level GICS output.
                       </p>
+                      {mappedLine && <p className="status-text" role="status">{mappedLine}</p>}
                       {error && <p className="error-text" role="alert">{error}</p>}
                     </td>
                   </tr>
@@ -687,6 +707,12 @@ function OverlapView() {
   async function addFund(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file || !fundName) return;
+    const wanted = fundName.trim();
+    if (funds.some((f) => f.name.trim() === wanted)) {
+      setError(`${wanted} is already in the list. Give this fund another name.`);
+      e.target.value = "";
+      return;
+    }
     setBusy(true);
     setError(null);
     try {

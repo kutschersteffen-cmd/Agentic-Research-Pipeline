@@ -51,6 +51,7 @@ def _no_llm(monkeypatch):
 def client(store, runs_dir, fake_llm, monkeypatch):
     app = FastAPI()
     app.include_router(plans.router)
+    app.include_router(plans.templates_router)
     app.dependency_overrides[plans.plan_store] = lambda: store
     app.dependency_overrides[current_user] = lambda: Principal(user_id="alice", name="alice", role="approver")
     monkeypatch.setattr("arp.api.deps.get_decision_store", lambda: type("D", (), {"list_frameworks": lambda s: []})())
@@ -107,11 +108,13 @@ def test_draft_refuses_with_none_saved(client, runs_dir):  # AC-104
     assert r.json()["detail"].endswith("Saved universes: none.")
 
 
-def test_draft_accepts_existing_file_outside_saved(client, tmp_path):  # AC-118
+def test_draft_refuses_existing_file_outside_saved(client, tmp_path):  # server-paths-upload-limits AC-32 (retires AC-118)
     path = tmp_path / "elsewhere.csv"
     path.write_text("company_id,name\nA,Acme\n")
-    client.use_llm([_script(str(path))])
-    assert client.post("/api/plans", json={"brief": "b"}).status_code == 200
+    client.use_llm([_script(str(path)), _script(str(path))])
+    r = client.post("/api/plans", json={"brief": "b"})
+    assert r.status_code == 422
+    assert "is not a saved universe" in r.json()["detail"]
 
 
 def test_replan_refuses_unknown_universe(client, store, runs_dir):  # AC-11
@@ -173,3 +176,103 @@ def test_saved_but_unreadable_universe_keeps_its_error(store, runs_dir, run_stor
     plan = _run(store, run_store, "x.xlsx")
     assert 'Unsupported file type ".xlsx". Upload a .csv or .json file.' in plan["error"]
     assert "is not a saved universe" not in plan["error"]
+
+
+# server-paths-upload-limits slice 2 (D1): a plan's universe `source` is a saved universe only, wherever the
+# script comes in or runs.
+
+def _outside(tmp_path, content: str = "company_id,name\nA,Acme\n", name: str = "outside.csv") -> str:
+    path = tmp_path / name
+    path.write_text(content)
+    return str(path)
+
+
+def test_draft_accepts_a_saved_universe_by_name_or_path(client, runs_dir):  # AC-33
+    _save(runs_dir, "eu.json", [{"company_id": "a", "name": "A"}])
+    for source in ("eu.json", str(runs_dir / "_universes" / "eu.json")):
+        client.use_llm([_script(source)])
+        r = client.post("/api/plans", json={"brief": "b"})
+        assert r.status_code == 200, (source, r.text)
+
+
+def test_worker_refuses_a_source_outside_without_reading_it(store, runs_dir, run_store, tmp_path, monkeypatch):  # AC-34
+    _stub_theme_run(monkeypatch, run_store)
+    plan = _run(store, run_store, _outside(tmp_path, "not json", "bad.json"))
+    assert plan["status"] == "failed"
+    assert "is not a saved universe" in plan["error"]
+    assert "not valid JSON" not in plan["error"]
+
+
+def test_cli_draft_refuses_a_source_outside(store, runs_dir, tmp_path, fake_llm, monkeypatch):  # AC-35
+    from typer.testing import CliRunner
+
+    from arp.cli import plan as plan_cli
+
+    source = _outside(tmp_path)
+    monkeypatch.setattr(plan_cli, "_llm", lambda: fake_llm({"PlanScript": [_script(source), _script(source)]}))
+    monkeypatch.setattr(plan_cli, "_context", lambda: "CTX")
+    result = CliRunner().invoke(plan_cli.plan_app, ["draft", "b"])
+    assert result.exit_code != 0
+    assert "is not a saved universe" in result.stdout
+    assert store.list() == []
+
+
+def test_cli_replan_refuses_a_source_outside(store, runs_dir, tmp_path, fake_llm, monkeypatch):  # AC-58
+    from typer.testing import CliRunner
+
+    from arp.cli import plan as plan_cli
+
+    plan_id = store.create("b", 'e = extraction(universe_run_id="r", schema_id="s")\n')
+    store.set_status(plan_id, "failed", error="boom")
+    source = _outside(tmp_path)
+    monkeypatch.setattr(plan_cli, "_llm", lambda: fake_llm({"PlanScript": [_script(source), _script(source)]}))
+    monkeypatch.setattr(plan_cli, "_context", lambda: "CTX")
+    result = CliRunner().invoke(plan_cli.plan_app, ["replan", plan_id])
+    assert result.exit_code != 0
+    assert "is not a saved universe" in result.stdout
+    assert store.get(plan_id)["status"] == "failed"
+
+
+def test_edit_refuses_a_source_outside(client, store, runs_dir, tmp_path):  # AC-59
+    _save(runs_dir, "u.csv", [])
+    plan_id = store.create("b", 'u = universe_build(taxonomy_id="t", source="u.csv")\n')
+    before = client.get(f"/api/plans/{plan_id}").json()
+    r = client.put(f"/api/plans/{plan_id}", json={"script": _script(_outside(tmp_path)).script})
+    assert r.status_code == 422
+    assert "is not a saved universe" in r.json()["detail"]
+    assert client.get(f"/api/plans/{plan_id}").json()["script"] == before["script"]
+
+
+def test_instantiate_refuses_a_source_outside(client, store, runs_dir, tmp_path):  # AC-70
+    _save(runs_dir, "u.csv", [])
+    plan_id = store.create("b", 'u = universe_build(taxonomy_id="t", source="u.csv")\n')
+    store.approve(plan_id, "alice")
+    assert client.post(f"/api/plans/{plan_id}/template", json={"name": "tpl70"}).status_code == 200
+    before = client.get("/api/plans").json()
+    r = client.post("/api/plan-templates/tpl70/instantiate", json={"source": _outside(tmp_path)})
+    assert r.status_code == 422
+    assert "is not a saved universe" in r.json()["detail"]
+    assert client.get("/api/plans").json() == before
+
+
+def test_replan_and_agent_route_refuse_a_source_outside(client, store, runs_dir, pg, tmp_path, monkeypatch):  # AC-71
+    from arp.agent.explorations import ExplorationStore
+    from arp.api.routers import agent
+    from tests.test_agent_exploration_plan_pg import _exploration
+
+    source = _outside(tmp_path)
+    plan_id = store.create("b", 'e = extraction(universe_run_id="r", schema_id="s")\n')
+    store.set_status(plan_id, "failed", error="boom")
+    client.use_llm([_script(source), _script(source)])
+    r = client.post(f"/api/plans/{plan_id}/replan")
+    assert r.status_code == 422
+    assert "is not a saved universe" in r.json()["detail"][0]
+    assert store.get(plan_id)["status"] == "failed"
+
+    client.use_llm([_script(source), _script(source)])
+    client.app.include_router(agent.router)
+    client.app.dependency_overrides[agent.exploration_store] = lambda: ExplorationStore(pg)
+    before = len(store.list())
+    r = client.post(f"/api/agent/explorations/{_exploration(pg)}/plan", json={"brief": "b"})
+    assert r.status_code == 422
+    assert len(store.list()) == before

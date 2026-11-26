@@ -1,45 +1,50 @@
+@font-face {
+  font-family: "Geist Pixel Square";
+  src: url("./assets/fonts/GeistPixel-Square.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  /* Night Desk (light): a cool blue-grey ground with ink text and ink
-     controls. The one signal colour, amber (--hi / --await-edge), is reserved
-     for things waiting on a person -- the "needs you" counts, proposed-not-
-     ratified output, the tiles that link to a decision. Once someone decides,
-     the amber goes. Nothing automated ever uses it. */
-  --bg: #f4f6f9;
-  --panel: #ffffff;
-  --panel-border: #d8dee7;
-  /* Form-field edge: >=3:1 on the field and page (WCAG 1.4.11); --panel-border stays light for cards and rules. */
-  --field-border: #7b8696;
-  --well: #eaeef3;
-  --text: #121722;
-  --muted: #4f5a6b;
-  --accent: #121722;
-  --accent-ink: #000000;
-  --accent-tint: rgb(20 20 20 / 0.06);
-  --sidebar-bg: #eaeef3;
-  --on-accent: #ffffff; /* text on accent and status fills */
-  /* Awaiting a person: a pale amber fill with the signal amber as its edge
-     and its text (--hi-ink: 5.7:1 on white, 4.9:1 on its own fill). */
-  --await: #f6ecd6;
-  --await-edge: #85601a;
-  --hi: #85601a;
-  --hi-ink: #85601a;
-  --on-hi: #ffffff; /* text on a --hi fill: 5.7:1 */
+  /* One theme: black (docs/superpowers/specs/2026-11-22-expressive-ui-orb.md). Ink text and ink
+     controls on a black ground. The one signal colour, amber (--hi / --await-edge), is reserved
+     for things waiting on a person -- the "needs you" counts, proposed-not-ratified output, the
+     tiles that link to a decision. Once someone decides, the amber goes. Nothing automated ever
+     uses it. */
+  --bg: #000000;
+  --panel: #0b0c0f;
+  --panel-2: #101217; /* the top of a card's gradient */
+  --panel-border: rgb(255 255 255 / 0.10);
+  --panel-border-strong: rgb(255 255 255 / 0.18); /* hover edge */
+  /* Form-field edge: >=3:1 on the field and page (WCAG 1.4.11); --panel-border stays faint for cards and rules. */
+  --field-border: #6d7889;
+  --well: #101217;
+  --text: #eceef2;
+  --muted: #9aa3b2;
+  --accent: #eceef2;
+  --accent-ink: #ffffff;
+  --accent-tint: rgb(236 238 242 / 0.08);
+  --sidebar-bg: #050506;
+  --on-accent: #000000; /* text on accent and status fills */
+  /* Awaiting a person: an amber wash with the signal amber as its edge and its text. */
+  --await: rgb(224 178 90 / 0.14);
+  --await-edge: #e0b25a;
+  --hi: #e0b25a;
+  --hi-ink: #e0b25a;
+  --on-hi: #000000; /* text on a --hi fill */
   /* high/mid/low/neutral are status semantics (run status, escalation
-     stage, badges) rendered as small text/borders, not chart marks.
-     Deepened again when the ground moved to warm cream: at the previous
-     values --mid scored 2.99:1 on --well, where .banner-warning renders,
-     and --high 3.66:1. These clear 4.5:1 on --bg, --panel and --well
-     alike, and still clear 4.5:1 under white as badge fills. */
-  --high: #13804f;
-  --mid: oklch(52% 0.125 70);
-  --low: #c8323f;
-  --run: #2563c9; /* running work */
-  --paper: #ffffff; /* source excerpt card */
-  --ink: var(--text);
-  --ink-muted: var(--muted); /* context lines on the paper card */
-  --paper-mark: #f6ecd6; /* the paper card's highlight: the same amber in both themes */
+     stage, badges) rendered as small text/borders, not chart marks. */
+  --high: #4fd69c;
+  --mid: #f2c94c;
+  --low: #ff6b7a;
+  --run: #5fb0ff; /* running work */
+  --paper: #f5f2ea; /* source excerpt card: light paper on the black page */
+  --ink: #1b1a17;
+  --ink-muted: #5f5b52; /* context lines on the paper card */
+  --paper-mark: #f6ecd6; /* the paper card's highlight */
   --paper-mark-edge: #85601a;
-  --neutral: oklch(50% 0.010 64);
+  --neutral: #9a9ba0;
 
   /* Type scale. Replaces fifteen ad-hoc sizes, nine of which sat between
      0.68 and 0.95rem and read as noise rather than hierarchy. */
@@ -76,8 +81,8 @@
   /* Elevation is for things that genuinely float. Flat surfaces keep
      hairline borders -- this direction earns its depth from rules, not
      shadow, so only overlays use these. */
-  --shadow-md: 0 2px 6px oklch(20% 0.014 58 / 0.07), 0 8px 24px oklch(20% 0.014 58 / 0.10);
-  --shadow-lg: 0 12px 32px oklch(20% 0.014 58 / 0.16);
+  --shadow-md: 0 2px 6px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.5);
+  --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.6);
 
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
   --dur: 140ms;
@@ -94,105 +99,20 @@
 
   --font-display: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, monospace;
+  /* Pixel type marks where ARP presents itself (DESIGN.md, The Pixel Means Presence Rule). */
+  --font-pixel: "Geist Pixel Square", "Geist Mono", ui-monospace, monospace;
   font-family: var(--font-display);
-  color-scheme: light;
+  color-scheme: dark;
   accent-color: var(--accent);
 
   /* Chart categorical slots (lib/palette.ts explains the validation). */
-  --cat-1: #2a78d6;
-  --cat-2: #c2407f;
-  --cat-3: #a87400;
-  --cat-4: #6250d6;
-  /* Brand orange (DESIGN.md, The Brand Colour Rule): the logo apex and the landing orb only. */
-  --brand-apex: #ea4c14;
-  --orb: #ea4c14;
-}
-
-/* Night Desk (dark): a blue-black ground with stepped panels and the same
-   amber signal as light mode, so "waiting on a person" looks the same in both
-   themes; red stays for failures. Follows the system setting unless the
-   sidebar switch pins a mode (data-theme on <html>). */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0d1015;
-    --panel: #141921;
-    --panel-border: rgb(232 235 240 / 0.12);
-    --field-border: #6d7889;
-    --well: #1b222d;
-    --text: #e8ebf0;
-    --muted: #a3acbb;
-    --accent: #e8ebf0;
-    --accent-ink: #ffffff;
-    --accent-tint: rgb(232 232 227 / 0.08);
-    --sidebar-bg: #10141a;
-    --on-accent: #0d1015;
-    --await: rgb(212 166 80 / 0.14);
-    --await-edge: #d4a650;
-    --hi: #d4a650;
-    --hi-ink: #d4a650;
-    --on-hi: #0d1015;
-    --high: #4fd69c;
-    --mid: #f2c94c;
-    --low: #ff6b7a;
-    --run: #6cb4ff; /* running work */
-    --paper: #f5f2ea; /* source excerpt card */
-    --ink: #1b1a17;
-    --ink-muted: #5f5b52; /* context lines on the paper card */
-    --paper-mark: #f6ecd6; /* the paper card's highlight: the same amber in both themes */
-    --paper-mark-edge: #85601a;
-    --neutral: #9a9ba0;
-    --shadow-md: 0 2px 6px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.5);
-    --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.6);
-    --font-display: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    --font-mono: "Geist Mono", ui-monospace, monospace;
-    --cat-1: #3987e5;
-    --cat-2: #d55181;
-    --cat-3: #c98500;
-    --cat-4: #9085e9;
-    --brand-apex: #ff6a2b;
-    --orb: #ff6a2b;
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #0d1015;
-  --panel: #141921;
-  --panel-border: rgb(232 235 240 / 0.12);
-  --field-border: #6d7889;
-  --well: #1b222d;
-  --text: #e8ebf0;
-  --muted: #a3acbb;
-  --accent: #e8ebf0;
-  --accent-ink: #ffffff;
-  --accent-tint: rgb(232 232 227 / 0.08);
-  --sidebar-bg: #10141a;
-  --on-accent: #0d1015;
-  --await: rgb(212 166 80 / 0.14);
-  --await-edge: #d4a650;
-  --hi: #d4a650;
-  --hi-ink: #d4a650;
-  --on-hi: #0d1015;
-  --high: #4fd69c;
-  --mid: #f2c94c;
-  --low: #ff6b7a;
-  --run: #6cb4ff; /* running work */
-  --paper: #f5f2ea; /* source excerpt card */
-  --ink: #1b1a17;
-  --ink-muted: #5f5b52; /* context lines on the paper card */
-  --paper-mark: #f6ecd6; /* the paper card's highlight: the same amber in both themes */
-  --paper-mark-edge: #85601a;
-  --neutral: #9a9ba0;
-  --shadow-md: 0 2px 6px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.5);
-  --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.6);
-  --font-display: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  --font-mono: "Geist Mono", ui-monospace, monospace;
   --cat-1: #3987e5;
   --cat-2: #d55181;
   --cat-3: #c98500;
   --cat-4: #9085e9;
+  /* Brand orange (DESIGN.md, The Brand Colour Rule): the logo apex and the landing caption's square only. */
   --brand-apex: #ff6a2b;
   --orb: #ff6a2b;
-  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -209,11 +129,8 @@ kbd, code { letter-spacing: normal; }
 /* Balanced headings and no one-word last lines, everywhere; zero specificity so components still decide. */
 :where(h1, h2, h3, h4) { text-wrap: balance; }
 :where(p, li, dd, figcaption) { text-wrap: pretty; }
-/* Light text on dark reads thinner with greyscale antialiasing (macOS only; elsewhere a no-op). */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
-}
-:root[data-theme="dark"] body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+/* Light text on black reads thinner with greyscale antialiasing (macOS only; elsewhere a no-op). */
+body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 ::selection { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--text); }
 /* The browser default placeholder grey measured 4.47:1 on --panel. */
 ::placeholder { color: var(--muted); opacity: 1; }
@@ -294,22 +211,6 @@ a.nav-tab { text-decoration: none; }
 }
 /* The intro reads in --text-2; a meta line under a title (.meta) stays muted and small. */
 :where(.page, .page-body) > h1 + :is(.help-text, .muted):not(.meta) { color: var(--text-2); font-size: var(--text-base); }
-/* The overview's header drawing is hidden unless a width range below shows it, so a fractional width (browser zoom)
-   never drops a full-size drawing into the page. */
-.page.hub:not(.hub-start) > .ws-drawing { display: none; }
-/* Workspace overviews at 1100px and up: title | intro | drawing, bottoms aligned. Inline-blocks keep the page's
-   block flow; the 1px keeps rounding from wrapping the third column. */
-@media (min-width: 1100px) {
-  .page.hub:not(.hub-start) > h1:has(+ .help-text) { display: inline-block; width: calc((100% - 120px - 2 * var(--s-8) - 1px) / 2); margin: 0 var(--s-8) var(--s-8) 0; vertical-align: bottom; }
-  .page.hub:not(.hub-start) > h1 + .help-text { display: inline-block; width: calc((100% - 120px - 2 * var(--s-8) - 1px) / 2); margin: 0 var(--s-8) var(--s-8) 0; vertical-align: bottom; }
-  .page.hub:not(.hub-start) > .ws-drawing { display: inline-block; width: 120px; height: auto; margin-bottom: var(--s-8); vertical-align: bottom; }
-}
-/* Tablets: the title and intro stack; the drawing sits at the head's top right, and the text keeps clear of it. */
-@media (min-width: 761px) and (max-width: 1099.98px) {
-  .page.hub:not(.hub-start, .argus-start) { position: relative; }
-  .page.hub:not(.hub-start) > .ws-drawing { display: block; position: absolute; top: 0; right: 0; width: 120px; height: auto; }
-  .page.hub:not(.hub-start) > h1, .page.hub:not(.hub-start) > h1 + .help-text { max-width: min(62ch, calc(100% - 120px - var(--s-8))); }
-}
 /* Above 760px the intro is a lead. */
 @media (min-width: 761px) {
   :where(.page, .page-body) > h1 + :is(.help-text, .muted):not(.meta) { font-size: 1.0625rem; line-height: 1.5; max-width: 62ch; text-wrap: pretty; }
@@ -1656,36 +1557,100 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 /* Start page: the four processes are the page. One status line above,
    one row of run chips below; the highlight colour (--hi) only ever marks
    what waits on a person. */
-.hub-hero { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--s-6) var(--s-8); flex-wrap: wrap; margin: var(--s-4) 0 var(--s-8); }
-.hub-start .hub-hero h1 { margin: 0; max-width: 24ch; font-size: clamp(2rem, 1.2rem + 2.4vw, 3.25rem); line-height: 1.02; font-weight: 500; letter-spacing: var(--track-display); text-wrap: balance; }
-.hub-hero-greet { display: block; color: var(--muted); }
-.hub-cards { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 20px; }
+/* The start page hero (expressive-ui-orb): the Orb's stage. The greeting on the left in pixel type, the Orb on
+   the right; at 860px and below the Orb sits above the text. */
+.hub-hero { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: var(--s-6); min-height: 660px; margin: calc(-1 * var(--s-6)) 0 var(--s-6); }
+.hub-hero-copy { align-self: center; display: flex; flex-direction: column; gap: 22px; padding: 56px 0 40px; min-width: 0; }
+.hub-hero-cap { margin: 0; font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.04em; color: var(--muted); }
+.hub-start .hub-hero h1 { margin: 0; font-family: var(--font-pixel); font-weight: 400; font-size: clamp(52px, 7.2vw, 104px); line-height: 0.92; letter-spacing: 0; color: var(--text); text-wrap: balance; overflow-wrap: anywhere; }
+.hub-hero-lead { margin: 0; max-width: 36ch; font-size: 19px; line-height: 1.45; text-wrap: balance; }
+.hub-hero-lead:empty { display: none; }
+.hub-hero-lead a { color: var(--hi-ink); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+/* The Orb's box: the largest square that fits the stage, at most 410px (radius 205px). */
+.hub-hero-stage { position: relative; container-type: size; min-height: 540px; display: grid; place-items: center; }
+.hub-hero-stage .orb { width: min(100cqw, 100cqh, 410px); height: min(100cqw, 100cqh, 410px); }
+@media (max-width: 860px) {
+  .hub-hero { grid-template-columns: minmax(0, 1fr); gap: 0; min-height: 0; margin-top: 0; }
+  .hub-hero-stage { order: -1; min-height: 0; height: min(calc(100vw - 2 * var(--s-4)), 410px); }
+  .hub-hero-copy { padding: var(--s-6) 0 var(--s-8); }
+}
+
+/* The five workspace cards: five in a row, three at 1180px and below, two at 760px, one at 480px. */
+.hub-cards { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 1180px) { .hub-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .hub-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .hub-cards { grid-template-columns: minmax(0, 1fr); } }
 .hub-card {
-  grid-column: span 2; min-width: 0; overflow: hidden;
+  position: relative; min-width: 0; overflow: hidden;
   border-radius: var(--r-lg);
   display: flex; flex-direction: column;
-  border: 1px solid var(--panel-border); background: var(--panel); color: inherit; text-decoration: none;
-  transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease);
+  border: 1px solid var(--panel-border); background: linear-gradient(180deg, var(--panel-2), var(--panel)); color: inherit; text-decoration: none;
+  transition: border-color var(--dur) var(--ease), transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.hub-card:nth-child(n+4) { grid-column: span 3; }
-.hub-card:hover { border-color: var(--text); transform: translateY(-2px); }
+.hub-card:hover { border-color: var(--panel-border-strong); transform: translateY(-3px); }
 .hub-card:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { .hub-card, .hub-card:hover { transition: none; transform: none; } }
-.hub-card-await { border-color: var(--await-edge); }
-/* The figure: a wireframe drawing of the workspace, captioned like a plate in a manual. */
-.hub-card-fig { position: relative; display: grid; place-items: end center; min-height: 200px; padding: var(--s-8) var(--s-4) var(--s-2); border-bottom: 1px solid var(--panel-border); background: var(--bg); }
-.hub-card-cap { position: absolute; left: var(--s-4); top: var(--s-3); font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+/* Glows are status light: blue while a workspace runs, amber (with the waiting edge) while it waits on you. */
+.hub-card-run { box-shadow: 0 0 44px -18px var(--run); }
+.hub-card-await { border-color: var(--await-edge); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--await-edge) 55%, transparent), 0 0 40px -12px var(--hi); }
+/* The figure: the workspace's drawing on near-black, a soft glow behind it in the status colour. */
+.hub-card-fig { position: relative; display: block; height: 200px; border-bottom: 1px solid var(--panel-border); background: radial-gradient(60% 70% at 50% 62%, var(--fig-glow, rgb(255 255 255 / 0.05)), transparent 70%), #030304; }
+.hub-card-run .hub-card-fig { --fig-glow: color-mix(in srgb, var(--run) 13%, transparent); }
+.hub-card-await .hub-card-fig { --fig-glow: color-mix(in srgb, var(--hi) 13%, transparent); }
+.hub-card-fig:has(> .ws-drawing[data-flash]) { animation: ws-flash 950ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+@keyframes ws-flash { from { filter: brightness(2.1); } to { filter: brightness(1); } }
+.hub-card-fig .ws-drawing { position: absolute; left: 0; right: 0; top: 30px; width: 100%; height: calc(100% - 36px); }
+.hub-card-cap { position: absolute; left: 14px; top: 12px; z-index: 1; font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+/* The drawings: dark gradient faces; only the status part lights up (DESIGN.md, The Icon Accent Rule). */
 .ws-drawing { display: block; width: 190px; height: 148px; overflow: visible; }
-.ws-drawing path { stroke-width: 1px; stroke: color-mix(in srgb, var(--text) 25%, transparent); stroke-linejoin: round; }
-.ws-face { fill: var(--panel); }
-.ws-top { fill: var(--panel); }
-.ws-drawing .ws-accent-wait { stroke: var(--hi); }
-.ws-drawing .ws-accent-now { stroke: var(--run); }
-.hub-card-body { display: flex; flex-direction: column; gap: var(--s-2); flex: 1; padding: 20px var(--s-6); }
+.ws-drawing path { stroke-width: 1px; stroke-linejoin: round; }
+.ws-drawing .ws-face { stroke: color-mix(in srgb, var(--text) 30%, transparent); }
+.ws-drawing .ws-top { stroke: color-mix(in srgb, var(--text) 55%, transparent); }
+.ws-drawing .ws-shadow { fill: rgb(255 255 255 / 0.04); stroke: none; }
+.ws-drawing .ws-detail { fill: none; stroke: color-mix(in srgb, var(--text) 45%, transparent); stroke-dasharray: 2 4; }
+.ws-g-face-0 { stop-color: #15181f; }
+.ws-g-face-1 { stop-color: #07080a; }
+.ws-g-top-0 { stop-color: #262a33; }
+.ws-g-top-1 { stop-color: #12141a; }
+.ws-g-now-0 { stop-color: #1d4a7a; }
+.ws-g-now-1 { stop-color: #0a1a2e; }
+.ws-g-wait-0 { stop-color: #5a4519; }
+.ws-g-wait-1 { stop-color: #241b08; }
+.ws-drawing .ws-accent-wait { stroke: var(--hi); stroke-width: 1.6px; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--hi) 85%, transparent)); }
+.ws-drawing .ws-lit-wait { stroke: var(--hi); stroke-width: 1.6px; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--hi) 85%, transparent)); }
+.ws-drawing .ws-accent-now { stroke: var(--run); stroke-width: 1.6px; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--run) 90%, transparent)); }
+.ws-drawing .ws-lit-now { stroke: var(--run); stroke-width: 1.6px; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--run) 90%, transparent)); }
+.ws-drawing .ws-extra { fill: color-mix(in srgb, var(--run) 10%, transparent); stroke: var(--run); filter: drop-shadow(0 0 5px color-mix(in srgb, var(--run) 90%, transparent)); }
+.ws-drawing .ws-extra.ws-dash { fill: none; stroke-dasharray: 3 3; filter: none; }
+.hub-card-body { display: flex; flex-direction: column; gap: 10px; flex: 1; padding: 16px 18px 18px; }
 .hub-card-name { font-size: 1.25rem; font-weight: 500; line-height: 1.2; letter-spacing: var(--track-title); }
-.hub-card-purpose { color: var(--text-2); line-height: 1.55; }
-/* One status line: a mark per process, then the state in words. */
-.hub-card-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) 10px; margin-top: auto; padding-top: var(--s-3); font-size: var(--text-sm); font-weight: 500; }
+.hub-card-purpose { color: var(--text-2); line-height: 1.4; font-size: var(--text-sm); }
+/* The status: the word, the detail to its right in mono, then the rail. */
+.hub-card-status { display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding-top: var(--s-1); font-size: 13px; font-weight: 500; }
+.hub-card-line { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 8px; min-width: 0; }
+.hub-card-line > :first-child { white-space: nowrap; }
+.hub-card-line .hub-status-detail { max-width: 100%; min-width: 0; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: var(--text-xs); }
+/* The status rail (DESIGN.md, Status Rail): one 10px segment per process, 3px apart. Running flows, waiting
+   breathes; nothing else moves. */
+.hub-rail { display: flex; gap: 3px; height: 10px; }
+.hub-rail [data-seg] { flex: 1; position: relative; overflow: hidden; border-radius: 1px; }
+.hub-rail [data-seg="done"] { background: color-mix(in srgb, var(--text) 78%, transparent); }
+.hub-rail [data-seg="idle"] { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 22%, transparent); }
+.hub-rail [data-seg="unknown"] { outline: 1px dashed color-mix(in srgb, var(--text) 30%, transparent); outline-offset: -1px; }
+.hub-rail [data-seg="failed"] { background: var(--low); }
+.hub-rail [data-seg="now"] { background: color-mix(in srgb, var(--run) 18%, transparent); box-shadow: 0 0 12px -2px var(--run); }
+.hub-rail [data-seg="now"]::before { content: ""; position: absolute; inset: 0 -10px 0 -10px; background: repeating-linear-gradient(90deg, var(--run) 0 6px, transparent 6px 10px); opacity: 0.9; animation: rail-flow 0.9s linear infinite; }
+.hub-rail [data-seg="now"]::after { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 40%; background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.9), transparent); animation: rail-sweep 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+.hub-rail [data-seg="wait"] { background: var(--hi); animation: rail-breathe 1.8s ease-in-out infinite; }
+.hub-rail [data-seg="wait"]::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 6px, rgb(0 0 0 / 0.35) 6px 8px); }
+@keyframes rail-flow { from { transform: translateX(-10px); } to { transform: translateX(0); } }
+@keyframes rail-sweep { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+@keyframes rail-breathe { 50% { box-shadow: 0 0 14px 1px var(--hi); filter: brightness(1.25); } }
+@media (prefers-reduced-motion: reduce) {
+  .hub-rail [data-seg], .hub-rail [data-seg]::before, .hub-rail [data-seg]::after { animation: none; }
+  .hub-card-fig:has(> .ws-drawing[data-flash]) { animation: none; }
+}
+/* A status square per process (top bar menu, process headers). */
 .hub-marks { display: inline-flex; gap: 3px; }
 .hub-mark { display: inline-block; width: 8px; height: 8px; }
 .hub-mark-done { background: var(--text); }
@@ -1709,7 +1674,7 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .hub-entry:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { .hub-entry, .hub-entry:hover { transition: none; transform: none; } }
 .hub-entry-fig { display: grid; place-items: center; padding: var(--s-4); border-right: 1px solid var(--panel-border); background: var(--bg); }
-.hub-entry-fig .ws-drawing { width: 152px; height: 118px; }
+.hub-entry-fig .ws-drawing { width: 161px; height: 144px; } /* the 212 × 190 viewBox at the old 0.76 scale */
 .hub-entry .hub-card-body { justify-content: center; }
 .hub-entry-cap { position: static; }
 @media (max-width: 760px) {
@@ -1718,22 +1683,17 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 }
 
 
-@media (max-width: 1100px) {
-  .hub-card, .hub-card:nth-child(n+4) { grid-column: span 3; }
-  /* Two per row leaves Data Hub alone beside an empty cell: let it fill the row. */
-  .hub-card:nth-child(5) { grid-column: 1 / -1; }
-}
-@media (max-width: 760px) {
-  .hub-cards { grid-template-columns: minmax(0, 1fr); }
-  .hub-card, .hub-card:nth-child(n+4) { grid-column: auto; }
-}
-
 .hub-run { margin: 0 0 var(--s-3); }
 /* On a phone the note goes under the button instead of wrapping around it. */
 @media (max-width: 640px) { .hub-run > .muted { display: block; margin-top: var(--s-2); } }
 .hub-run ul { margin: var(--s-1) 0; }
-.hub-flow { list-style: none; display: flex; gap: 18px; margin: var(--s-4) 0 0; padding: 0; }
-.hub-flow-item { flex: 1 1 0; min-width: 0; position: relative; display: flex; }
+/* The flow is its own scroll window (process-flow-viewer): one row of steps, 180px each at 100% (--fz 1), growing by
+   equal shares when the window is wider. Each step is zoomed as a whole (text, paddings, number, connector) by --fz;
+   a grid, not flex, so a flow taller than the window keeps its cards' full height and scrolls up and down. */
+.hub-flow { list-style: none; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(calc(180px * var(--fz, 1)), 1fr); column-gap: calc(18px * var(--fz, 1)); margin: var(--s-4) 0 0; padding: 14px; max-height: 70vh; overflow: auto; border: 1px solid var(--panel-border); border-radius: 8px; background: var(--well); scrollbar-width: thin; scrollbar-color: var(--panel-border-strong) transparent; overscroll-behavior-x: contain; touch-action: pan-x pan-y; scroll-behavior: auto; }
+.hub-flow:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hub-flow[data-dragging], .hub-flow[data-dragging] * { cursor: grabbing; user-select: none; }
+.hub-flow-item { min-width: 0; position: relative; display: flex; zoom: var(--fz, 1); }
 /* The arrow into each step after the first, as on the extraction pipeline. */
 .hub-flow-item + .hub-flow-item::before { content: ""; position: absolute; left: -18px; top: 50%; width: 14px; height: 2px; background: var(--panel-border); }
 /* The track: ink after a reached (done) step, the running colour into the step being run. */
@@ -1782,11 +1742,70 @@ button.hub-step:hover:not(:disabled) { background: var(--panel); }
 .hub-step-panel dt { color: var(--muted); }
 .hub-step-panel dd { margin: 0; display: flex; align-items: center; gap: var(--s-1_5); min-width: 0; overflow-wrap: anywhere; }
 
-@media (max-width: 900px) {
-  .hub-flow { flex-direction: column; }
-  .hub-flow-item + .hub-flow-item::before { left: 50%; top: -16px; width: 2px; height: 14px; }
-}
 @media (max-width: 760px) { .hub-step-panel .button-link { min-height: 44px; display: inline-flex; align-items: center; } }
+
+/* Inside a workspace (expressive-ui-orb): caption, pixel title, purpose and status line on the left, the drawing in
+   its figure box on the right; with asking allowed, the Ask ARP card is the right column above 1080px and sits between
+   the header and the panels below it. Each process is a panel with a rail of one segment per step. */
+.page.hub-ws { display: grid; grid-template-columns: minmax(0, 1fr) 300px; grid-template-areas: "cap fig" "title fig" "intro fig" "status fig" "ask ask" "body body"; column-gap: 32px; align-items: start; container-type: inline-size; --ws-title-col: calc(100cqi - 332px); }
+.hub-ws > .hub-ws-cap { grid-area: cap; margin: var(--s-4) 0 0; font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.04em; color: var(--muted); }
+/* The title follows its column, not the viewport: at the column's width over 5.6 the longest single word
+   ("Intelligence", 12 glyphs) fits, so a long name wraps between words only. */
+.page.hub-ws > h1 { grid-area: title; margin: 14px 0 16px; font-family: var(--font-pixel); font-weight: 400; font-size: clamp(48px, min(6.4vw, var(--ws-title-col) / 5.6), 92px); line-height: 0.94; color: var(--text); overflow-wrap: break-word; }
+.page.hub-ws > h1 + .help-text { grid-area: intro; margin: 0; }
+.hub-ws > .hub-ws-status { grid-area: status; margin: 22px 0 0; font-size: 15px; line-height: 1.5; }
+.hub-ws-status .hub-mark { margin-right: 10px; vertical-align: 1px; }
+.hub-ws-status .hub-status-detail { margin-left: 2px; font-family: var(--font-mono); font-size: 13px; }
+.hub-ws-fig { grid-area: fig; align-self: center; position: relative; height: 240px; margin-top: var(--s-4); border: 1px solid var(--panel-border); border-radius: 12px; background: radial-gradient(60% 70% at 50% 62%, var(--fig-glow, rgb(255 255 255 / 0.05)), transparent 70%), #030304; }
+.hub-ws-fig[data-tone="now"] { --fig-glow: color-mix(in srgb, var(--run) 14%, transparent); }
+.hub-ws-fig[data-tone="wait"] { --fig-glow: color-mix(in srgb, var(--hi) 14%, transparent); border-color: color-mix(in srgb, var(--hi) 60%, transparent); }
+.hub-ws-fig:has(> .ws-drawing[data-flash]) { animation: ws-flash 950ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.hub-ws-fig .ws-drawing { position: absolute; left: 0; top: 14px; width: 100%; height: calc(100% - 20px); }
+.hub-ws-body { grid-area: body; display: flex; flex-direction: column; gap: 16px; min-width: 0; margin-top: 20px; }
+.hub-ws-body > * { margin: 0; }
+/* Ask ARP: the Orb's stage, then the question box. Not clipped, so the hover hint can run past the card's edge. */
+.hub-ask { grid-area: ask; margin-top: var(--s-6); border: 1px solid var(--panel-border); border-radius: 12px; background: var(--panel); }
+.hub-ask-stage { position: relative; height: 180px; display: grid; place-items: center; container-type: size; background: #000; border-bottom: 1px solid var(--panel-border); border-radius: 11px 11px 0 0; }
+.hub-ask-stage .orb { width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); }
+.hub-ask-cap { position: absolute; left: 14px; top: 12px; z-index: 2; font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.04em; color: var(--muted); pointer-events: none; }
+.hub-ask-stage .orb-label { right: 14px; bottom: 12px; z-index: 2; }
+.hub-ask-form { padding: var(--s-4); }
+/* 16px, so phone browsers do not zoom in on focus. */
+.hub-ask-form input { width: 100%; height: 42px; padding: 0 12px; border: 1px solid var(--panel-border-strong); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; font-size: 16px; }
+.hub-ask-form input::placeholder { color: var(--muted); }
+.hub-ask-form input:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+@media (min-width: 1081px) {
+  .page.hub-ws-ask { grid-template-columns: minmax(0, 1fr) 300px 340px; grid-template-areas: "cap fig ask" "title fig ask" "intro fig ask" "status fig ask" "body body ask"; --ws-title-col: calc(100cqi - 704px); }
+  .hub-ws-body { margin-top: var(--s-8); }
+  .hub-ask { position: sticky; top: calc(var(--topbar-h, 0px) + var(--s-4)); margin-top: var(--s-4); }
+}
+@media (max-width: 760px) {
+  .page.hub-ws { grid-template-columns: minmax(0, 1fr); grid-template-areas: "cap" "title" "intro" "status" "fig" "ask" "body"; --ws-title-col: 100cqi; }
+  .hub-ws-fig { align-self: stretch; height: 200px; margin-top: var(--s-6); }
+}
+/* A process panel: hairline, 12px corners; a running one glows blue, a waiting one has the waiting edge and glows amber. */
+.hub-process { padding: 20px 22px 22px; border: 1px solid var(--panel-border); border-radius: 12px; background: linear-gradient(180deg, var(--panel-2), var(--panel)); container: hub-process / inline-size; }
+.hub-process[data-state="now"] { box-shadow: 0 0 44px -18px var(--run); }
+.hub-process[data-state="wait"] { border-color: var(--await-edge); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--await-edge) 55%, transparent), 0 0 40px -12px var(--hi); }
+@media (max-width: 760px) { .hub-process { padding: 16px; } }
+.hub-step-rail { margin-top: var(--s-4); }
+.hub-rail [data-seg="planned"] { outline: 1px dashed color-mix(in srgb, var(--text) 30%, transparent); outline-offset: -1px; }
+.hub-step-count { font-family: var(--font-mono); color: var(--muted); }
+/* A narrow step stacks its "Last run / Updated" labels over their values instead of letting them overlap. */
+.hub-flow-item { container-type: inline-size; }
+@container (max-width: 140px) { .hub-step-rows > span { grid-template-columns: minmax(0, 1fr); } }
+/* The zoom bar above a flow's rail: mono, hairline buttons; neither the amber signal nor the running blue. */
+.hub-flow-zoom { display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: var(--s-3); font-family: var(--font-mono); font-size: var(--text-xs); }
+.hub-flow-zoom button { height: 28px; min-width: 28px; margin: 0; padding: 0 10px; border: 1px solid var(--panel-border); border-radius: var(--r-sm); background: transparent; color: var(--text); font: inherit; letter-spacing: 0.04em; }
+.hub-flow-zoom button:hover:not(:disabled) { background: var(--accent-tint); border-color: var(--panel-border-strong); }
+.hub-flow-zoom button:disabled { background: transparent; color: var(--muted); border-style: dashed; }
+.hub-flow-zoom output { min-width: 5ch; text-align: center; color: var(--text-2); font-variant-numeric: tabular-nums; }
+@media (max-width: 760px) { .hub-flow-zoom button { min-width: 44px; min-height: 44px; } }
+/* Argus's start page keeps its own head; its title takes the workspace title's pixel type. */
+.argus-head h1 { padding-bottom: 6px; font-family: var(--font-pixel); font-weight: 400; font-size: clamp(48px, 6.4vw, 92px); line-height: 0.94; overflow-wrap: break-word; }
+/* The Agent screen's Orb: 56 × 56px before the title. */
+.agent-head > .orb { flex: none; width: 56px; height: 56px; }
+.agent-head > .orb + h1 { margin-right: auto; }
 
 /* Sidebar colour-theme switch: System / Light / Dark. */
 .theme-switch { display: flex; margin: auto var(--s-2) 0; padding: var(--s-0_5); gap: var(--s-0_5); border: 1px solid var(--panel-border); border-radius: var(--r-sm); background: var(--well); }
@@ -2342,6 +2361,8 @@ a.vc-box:hover { border-color: var(--text); }
    threads column, the stream and the stage scroll on their own, and the composer stays at the bottom. */
 @media (min-height: 560px) {
   .app-shell:has(.agent-page) { height: 100vh; height: 100dvh; min-height: 0; }
+  /* The top bar and workspace row keep their height; only the main area gives way to a long thread. */
+  .app-shell:has(.agent-page) > :not(.app-main) { flex: none; }
   .app-shell:has(.agent-page) > .app-main { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding-bottom: var(--s-4); }
   .page.agent-page { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; width: 100%; }
   .agent-page > .agent-head, .agent-page > .error-text { flex: none; }
@@ -2390,11 +2411,22 @@ a.vc-box:hover { border-color: var(--text); }
 .agent-ask-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); }
 .agent-ask-actions button { margin: 0; }
 .agent-link-card { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); margin: 0; padding: var(--s-2) var(--s-3); border: 1px solid var(--panel-border); border-radius: var(--r-sm); }
+.agent-turn-into-plan { display: grid; gap: var(--s-2); margin-top: var(--s-2); }
+.agent-turn-into-plan textarea { width: 100%; }
 /* Long lines wrap under their own text, so the number column stays clear and nothing scrolls sideways. */
 .agent-script { margin: 0; font-size: var(--text-sm); line-height: 1.5; }
 .agent-script-line { display: grid; grid-template-columns: 3ch minmax(0, 1fr); gap: var(--s-3); }
 .agent-script-line > :last-child { white-space: pre-wrap; overflow-wrap: anywhere; }
 .agent-ln { text-align: right; color: var(--muted); user-select: none; }
+/* Mini-app tab: the frame fills the column; its page is a light document (default black text), so it sits on the light
+ * system canvas in either theme. The Ask chips sit below it, outside the frame. */
+.agent-miniapp { display: block; width: 100%; height: min(70vh, 640px); border: 1px solid var(--panel-border); border-radius: var(--r-sm); color-scheme: light; background: Canvas; }
+.agent-miniapp-asks { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-2); }
+/* Shown only while focused: the keyboard way into the frame (MiniAppFrame). The frame then shows the focus ring. */
+.agent-miniapp-enter { margin-bottom: var(--s-2); }
+.agent-miniapp-enter:not(:focus) { position: absolute; width: 1px; height: 1px; margin: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* Focus moves into the frame's document, so the iframe matches :focus-within, not :focus. */
+.agent-miniapp:is(:focus, :focus-within) { outline: 2px solid var(--text); outline-offset: 2px; }
 /* Diff and Audit tabs. */
 .agent-stage-h { font-size: var(--text-sm); margin: var(--s-3) 0 var(--s-1_5); }
 .agent-stage-h:first-child { margin-top: 0; }
@@ -2428,6 +2460,65 @@ dialog.agent-drawer::backdrop { background: oklch(20% 0.014 58 / 0.55); }
   .agent-shell { grid-template-columns: minmax(0, 1fr); }
   .agent-side { display: none; }
 }
+
+/* Board tab (agent-board spec, slice 3): one column of blocks, then the field that asks the agent to draw. */
+.board { display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; }
+.board-empty { margin: 0; }
+.board-blocks { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--s-3); min-width: 0; }
+.board-block { min-width: 0; padding: var(--s-3); border: 1px solid var(--panel-border); border-radius: var(--r-md); background: var(--panel); }
+.board-block.board-dragging { opacity: 0.5; }
+.board-block.board-drop { border-color: var(--accent); }
+.board-drawing p { margin: 0; }
+.board-block-head { display: flex; align-items: center; gap: var(--s-1_5); margin-bottom: var(--s-2); min-width: 0; }
+.board-title { flex: 0 1 auto; min-width: 0; margin: 0; font-size: var(--text-sm); font-weight: 600; overflow-wrap: anywhere; cursor: grab; }
+.board-label { flex: none; font-size: var(--text-xs); color: var(--muted); border: 1px solid var(--panel-border); border-radius: 999px; padding: 0 var(--s-1_5); line-height: 1.6; }
+.board-menu { position: relative; margin-left: auto; flex: none; }
+.board-menu-button { margin: 0; padding: 0 var(--s-2); min-width: 32px; min-height: 32px; line-height: 1; background: transparent; color: var(--muted); border: 1px solid transparent; font-size: var(--text-md); }
+.board-menu-button:hover:not(:disabled), .board-menu-button[aria-expanded="true"] { background: var(--accent-tint); color: var(--text); }
+.board-menu-list { position: absolute; right: 0; top: calc(100% + var(--s-1)); z-index: 5; list-style: none; margin: 0; padding: var(--s-1); min-width: 12rem; background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--r-md); box-shadow: var(--shadow-md); }
+.board-menu-list button { display: block; width: 100%; margin: 0; padding: var(--s-1_5) var(--s-2); text-align: left; background: transparent; color: var(--text); font-size: var(--text-sm); }
+.board-menu-list button:hover:not(:disabled), .board-menu-list button:focus-visible { background: var(--accent-tint); }
+.board-menu-list button.danger-text { color: color-mix(in oklch, var(--low) 80%, var(--text)); }
+.board-note { overflow-wrap: anywhere; }
+.board-note > :first-child { margin-top: 0; }
+.board-note > :last-child { margin-bottom: 0; }
+.board-note :is(h4, h5, h6) { font-size: var(--text-sm); margin: var(--s-2) 0 var(--s-1); }
+.board-note :is(p, ul, ol) { margin: 0 0 var(--s-2); }
+.board-note :is(ul, ol) { padding-left: var(--s-6); }
+.board-note-line { margin: var(--s-2) 0 0; font-size: var(--text-sm); color: var(--muted); overflow-wrap: anywhere; }
+/* A wide table scrolls inside its own box, never the page (AC-26). */
+.board-table-box { max-width: 100%; overflow-x: auto; }
+.board-table { border-collapse: collapse; font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.board-table :is(th, td) { padding: var(--s-1) var(--s-2); border-bottom: 1px solid var(--panel-border); text-align: left; white-space: nowrap; }
+.board-table th { font-weight: 600; color: var(--muted); }
+.board-table td.num { text-align: right; }
+.board-chart { display: block; max-width: 100%; height: auto; }
+.board-diagram-box { max-width: 100%; overflow-x: auto; }
+.board-frame { display: block; width: 100%; border: 0; background: transparent; color-scheme: normal; }
+/* Not display: none, which would leave Mermaid nothing to measure on the next draw; AgentBoard sets its height to 0. */
+.board-frame.board-frame-failed { visibility: hidden; }
+.board-legend { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1) var(--s-3); margin: var(--s-2) 0 0; font-size: var(--text-xs); color: var(--muted); }
+.board-legend-item { display: inline-flex; align-items: center; gap: var(--s-1); }
+.board-legend-item i { width: 12px; height: 12px; border-radius: 3px; border: 1.5px solid; box-sizing: border-box; }
+.board-legend-key { margin-left: auto; }
+.board-source { margin: var(--s-2) 0 0; padding: var(--s-2); font-size: var(--text-xs); background: var(--well); border-radius: var(--r-sm); white-space: pre-wrap; overflow-wrap: anywhere; }
+.board-tiles { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: var(--s-2); }
+.board-tile { display: flex; flex-direction: column; gap: var(--s-0_5); padding: var(--s-2) var(--s-3); background: var(--well); border-radius: var(--r-sm); min-width: 0; }
+.board-tile-label { font-size: var(--text-xs); color: var(--muted); overflow-wrap: anywhere; }
+.board-tile-value { font-size: var(--text-xl); font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.board-tile-change { font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.board-tile-note { font-size: var(--text-xs); color: var(--muted); }
+.board-checklist { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--s-1); }
+.board-checklist label { display: flex; align-items: flex-start; gap: var(--s-2); cursor: pointer; overflow-wrap: anywhere; }
+.board-checklist input { margin-top: 0.2em; flex: none; }
+.board-edit textarea { width: 100%; box-sizing: border-box; font-size: var(--text-sm); }
+.board-edit .toolbar { margin-bottom: 0; }
+.board-edit .toolbar button { margin: 0; }
+.board-ask input { width: 100%; box-sizing: border-box; }
+.board-ask-block { margin-top: var(--s-2); }
+.board-field-error { margin: var(--s-1) 0 0; font-size: var(--text-sm); }
+.board-undo { display: flex; align-items: center; gap: var(--s-1_5); padding: var(--s-2) var(--s-3); border-radius: var(--r-md); background: var(--text); color: var(--panel); font-size: var(--text-sm); }
+.board-undo .link-button { margin: 0; padding: 0; color: var(--panel); font-weight: 600; text-decoration: underline; }
 
 /* Authority taxonomy run screens */
 .authority-run ul { list-style: none; padding: 0; margin: 0 0 var(--s-3); }
@@ -2470,31 +2561,55 @@ dialog.agent-drawer::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 .source-excerpt-ctx:last-child { display: block; margin-top: var(--s-1); }
 .source-excerpt-page mark { background: var(--await); color: inherit; padding: 0 2px; box-shadow: inset 0 -2px var(--await-edge); }
 
-/* Night Desk release 5: the landing page. Text sits on a gradient so it reads over the dots. */
-.landing { position: fixed; inset: 0; overflow: hidden; background: var(--bg); color: var(--text); display: grid; grid-template-rows: auto 1fr auto; }
-.landing-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-.landing-bar, .landing-main, .landing-promises { position: relative; }
+/* The landing page (expressive-ui-orb): the promise on the left, the Orb's stage on the right. */
+.landing { position: fixed; inset: 0; overflow: hidden auto; background: var(--bg); color: var(--text); display: grid; grid-template-rows: auto 1fr auto; }
 .landing-bar { padding: var(--s-6) max(var(--s-8), env(safe-area-inset-right, 0px)) var(--s-6) max(var(--s-8), env(safe-area-inset-left, 0px)); }
 .landing-brand { display: inline-flex; align-items: center; gap: var(--s-3); font-weight: 700; font-size: var(--text-md); }
 .landing-mark { height: 28px; width: auto; color: var(--text); }
 .landing-full { font-weight: 400; color: var(--muted); font-size: var(--text-sm); }
-.landing-main { align-self: center; display: grid; gap: var(--s-4); max-width: 640px; padding: var(--s-8) var(--s-12) var(--s-8) max(var(--s-8), env(safe-area-inset-left, 0px)); background: linear-gradient(90deg, color-mix(in srgb, var(--bg) 40%, transparent) 55%, transparent); }
-/* See-through intro: the network shows behind the text; a soft halo of the ground keeps it legible. */
-.landing-main h1, .landing-main p { text-shadow: 0 0 14px var(--bg), 0 0 4px var(--bg); }
-.landing-main h1 { margin: 0; font-family: "Source Serif 4", Georgia, serif; font-size: clamp(2.5rem, 2rem + 3vw, 4.2rem); line-height: 1.02; letter-spacing: -0.01em; font-weight: 500; text-wrap: balance; }
-.landing-main p { margin: 0; font-size: var(--text-md); line-height: 1.55; color: var(--muted); max-width: 46ch; }
-.landing-open { justify-self: start; padding: 12px 20px; border-radius: var(--r-md); background: var(--accent); color: var(--on-accent); font-weight: 600; text-decoration: none; }
+.landing-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: var(--s-6); padding: 0 max(var(--s-8), env(safe-area-inset-right, 0px)) 0 max(var(--s-8), env(safe-area-inset-left, 0px)); }
+.landing-copy { align-self: center; display: grid; justify-items: start; gap: var(--s-6); padding: var(--s-8) 0 var(--s-12); }
+.landing-cap { margin: 0; display: flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.landing-cap i { width: 8px; height: 8px; background: var(--brand-apex); }
+.landing-copy h1 { margin: 0; max-width: 13ch; font-family: var(--font-pixel); font-weight: 400; font-size: clamp(40px, 5.4vw, 80px); line-height: 0.96; letter-spacing: 0; }
+.landing-copy h1 + p { margin: 0; max-width: 34ch; font-size: 1.1875rem; line-height: 1.45; color: var(--muted); }
+.landing-open { display: inline-flex; align-items: center; gap: var(--s-3); height: 48px; padding: 0 22px; border-radius: var(--r-md); background: var(--accent); color: var(--on-accent); font-weight: 600; font-size: var(--text-md); text-decoration: none; transition: transform var(--dur-slow) var(--ease-out); }
+.landing-open:hover { transform: translateY(-2px); }
 .landing-open:focus-visible { outline: 2px solid var(--run); outline-offset: 3px; }
+.landing-open span { font-family: var(--font-mono); transition: transform var(--dur-slow) var(--ease-out); }
+.landing-open:hover span { transform: translateX(4px); }
+/* The Orb's box is the largest square that fits the stage, at most 600px (radius 300px). */
+.landing-stage { position: relative; container-type: size; min-height: 480px; display: grid; place-items: center; }
+.landing-stage .orb { width: min(100cqw, 100cqh, 600px); height: min(100cqw, 100cqh, 600px); }
 .landing-promises { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-6); padding: var(--s-6) var(--s-8); border-top: 1px solid var(--panel-border); background: var(--bg); }
 .landing-promises div { display: grid; gap: var(--s-1); }
 .landing-promises span { color: var(--muted); font-size: var(--text-sm); }
 .landing-promises b::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 0; background: var(--text); margin-right: 9px; vertical-align: 2px; }
+@media (max-width: 860px) {
+  .landing-main { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .landing-stage { order: -1; min-height: 0; height: min(calc(100vw - 2 * var(--s-4)), 400px); }
+}
 @media (max-width: 700px) {
   .landing { position: absolute; min-height: 100dvh; bottom: auto; overflow-y: auto; }
-  .landing-canvas { position: fixed; }
-  .landing-main { padding: var(--s-6) var(--s-4); background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 40%, transparent) 70%, transparent); }
+  .landing-bar { padding: var(--s-4); }
+  .landing-main { padding: 0 var(--s-4); }
+  .landing-copy { padding: var(--s-6) 0 var(--s-8); gap: var(--s-4); }
   .landing-promises { grid-template-columns: 1fr; padding: var(--s-4); }
 }
+@media (prefers-reduced-motion: reduce) {
+  .landing-open, .landing-open span { transition: none; }
+}
+
+/* The Orb (components/Orb.tsx). Its canvas or still fills the square box; the phase label and the hover
+   hint are siblings that the surrounding stage positions. The Orb's colours stay inside the canvas and the
+   label's square (DESIGN.md, The Orb Colour Rule). */
+.orb { position: relative; touch-action: pan-y; }
+.orb > canvas, .orb > img { display: block; width: 100%; height: 100%; }
+.orb[data-orb-mode="live"]:not([data-orb="agent"]) { cursor: pointer; }
+.orb-label { position: absolute; right: 0; bottom: var(--s-4); display: flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); pointer-events: none; }
+.orb-label i { width: 8px; height: 8px; }
+.orb-hint { position: absolute; z-index: 3; transform: translate(16px, -50%); font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text); white-space: nowrap; pointer-events: none; }
+.orb-hint[hidden] { display: none; }
 
 /* Dossier Shelve / Un-shelve: focus lands on these after the control that was used unmounts; they are not controls. */
 .focus-target:focus { outline: none; }
@@ -2902,3 +3017,62 @@ dialog.agent-drawer::backdrop { background: oklch(20% 0.014 58 / 0.55); }
   .wb-filters { position: relative; }
   .wb-filter-panel { left: 0; right: 0; width: auto; }
 }
+.status-exploratory { color: var(--mid); }
+.status-exploratory::before { background: transparent; outline: 1px dashed currentColor; outline-offset: -1px; }
+/* Ink words on every row ground (green text was 4.05:1 on a selected row); the square keeps the green. */
+.status-accepted { color: var(--ink); }
+.status-accepted::before { background: var(--high); }
+.agent-badge { font-size: var(--text-sm); color: var(--mid); border: 1px dashed var(--mid); padding: 0 var(--s-1); }
+.agent-exploration-code summary { cursor: pointer; }
+
+/* Refine threads on the Agent screen (refine-chat-design): the document gets the wider stage. */
+@media (min-width: 900px) {
+  .agent-shell.agent-shell-refine { grid-template-columns: minmax(180px, 240px) minmax(340px, 1fr) minmax(300px, 1.1fr); }
+}
+.agent-refine-new { width: 100%; margin: 0 0 var(--s-2); }
+.agent-refine-new[aria-current="true"] { background: var(--accent-tint); border-color: var(--accent); color: var(--text); }
+.refine-picker h2, .refine-title { font-size: var(--text-lg); margin: 0 0 var(--s-2); overflow-wrap: anywhere; }
+.refine-picker > p { max-width: 62ch; }
+.refine-picker-group h3 { font-size: var(--text-sm); margin: var(--s-4) 0 var(--s-2); color: var(--muted); }
+.refine-picker-group ul { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--s-1_5); }
+.refine-picker-group a.agent-link-card { color: var(--text); text-decoration: none; overflow-wrap: anywhere; }
+.refine-picker-group a.agent-link-card:hover { border-color: var(--accent); }
+.refine-who { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted); margin-right: var(--s-1); }
+.refine-reply p { margin: 0 0 var(--s-1); overflow-wrap: anywhere; }
+.refine-reply p:last-child { margin-bottom: 0; }
+.refine-line { font-size: var(--text-sm); }
+.refine-undone { color: var(--muted); }
+.refine-undo { margin: 0 0 var(--s-2); }
+.refine-undo button { margin: 0; }
+.refine-undo .error-text { margin: var(--s-1) 0 0; }
+.refine-progress { margin: 0; font-size: var(--text-sm); font-variant-numeric: tabular-nums; color: var(--run); }
+.refine-progress:not(:empty) { margin-bottom: var(--s-2); }
+.refine-export { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2); margin: 0 0 var(--s-2); padding: var(--s-2); border: 1px solid var(--panel-border); border-radius: var(--r-sm); }
+.refine-export p { margin: 0; }
+.refine-export button { margin: 0; }
+.refine-items { list-style: none; padding: 0; margin: 0; }
+.refine-item { border-top: 1px solid var(--panel-border); padding: var(--s-2) 0; }
+.refine-item h3 { margin: 0; font-size: var(--text-sm); overflow-wrap: anywhere; }
+.refine-answer { margin: 0; overflow-wrap: anywhere; }
+.refine-sources { margin: var(--s-1) 0 0; padding-left: var(--s-4); font-size: var(--text-sm); color: var(--muted); }
+.chip.chip-changed { border-color: var(--run); color: var(--run); font-weight: 600; }
+.refine-thumbs { display: flex; flex-wrap: wrap; gap: var(--s-1_5); padding: 0; margin: 0 0 var(--s-2); list-style: none; }
+.refine-thumb { position: relative; display: flex; flex-direction: column; gap: var(--s-0_5); padding: var(--s-0_5); background: var(--well); border: 2px solid transparent; border-radius: var(--r-sm); }
+.refine-thumb:hover { border-color: var(--panel-border); }
+.refine-thumb.active, .refine-thumb.active:hover { border-color: var(--accent); }
+.refine-thumb iframe { pointer-events: none; }
+/* The thumbnail's click target: a transparent button over the whole tile. */
+.refine-thumb-hit, .refine-thumb-hit:hover:not(:disabled) { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; padding: 0; margin: 0; background: transparent; border: 0; border-radius: var(--r-sm); }
+.refine-thumb-label { display: flex; align-items: center; gap: var(--s-1); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+.refine-thumb-label .chip { font-size: var(--text-xs); padding: 0 var(--s-1); }
+.refine-slide { overflow: hidden; }
+.refine-frame { overflow: hidden; border: 1px solid var(--panel-border); border-radius: var(--r-sm); }
+.refine-frame iframe { border: 0; transform-origin: 0 0; display: block; background: #fff; }
+.refine-overflow { margin: var(--s-1_5) 0 0; font-size: var(--text-sm); font-weight: 600; color: var(--low); }
+/* A link styled as a secondary button (Refine in Agent beside a primary button); in a toolbar it lines up with buttons. */
+a.button-link.secondary, .toolbar a.button-link.secondary { background: transparent; color: var(--accent); border: 1px solid var(--panel-border); padding: 8px var(--s-4); }
+a.button-link.secondary:hover, .toolbar a.button-link.secondary:hover { background: var(--accent-tint); border-color: var(--accent); }
+.toolbar a.button-link.secondary { margin-top: var(--s-3); }
+/* The selected thumbnail is tinted, so it differs from the keyboard focus ring. */
+.refine-thumb.active, .refine-thumb.active:hover { background: var(--accent-tint); }
+.refine-thumb-hit:focus-visible { outline-offset: 3px; }

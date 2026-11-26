@@ -5,18 +5,21 @@ import tempfile
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, Response
 
-from arp.api.deps import get_llm_client, get_reporting_store
+from arp.api.deps import get_llm_client, get_reporting_store, read_capped, settings_dep
+from arp.config import Settings
+from arp.refine.deck_ops import NO_DECK
 from arp.reporting.browser import write_pngs
 from arp.reporting.datasets import parse_tabular_upload
+from arp.reporting.html_render import render_deck_html
 from arp.reporting.preview import ensure_preview_images
 from arp.reporting.service import ReportingService
 from arp.reporting.storyline import _errors as storyline_errors
 from arp.reporting.style_profile import ingest_template
 from arp.reporting.template_frame import TemplateFrameError, font_family_of, frame_preview_html
-from arp.schemas.reporting import ReportManifest, ReportPlan, ReportRequest, ReportStatus, Storyline
-from arp.storage.report_images import ImageError, ImageTooLarge
+from arp.schemas.reporting import Deck, ReportManifest, ReportPlan, ReportRequest, ReportStatus, Storyline
+from arp.storage.report_images import MAX_BYTES, ImageError, ImageTooLarge
 from arp.storage.reporting_store import ReportingStore
 from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 
@@ -42,7 +45,7 @@ def _get_manifest_or_404(store: ReportingStore, report_id: str):
 @router.post("/templates")
 async def upload_template(
     file: UploadFile, fonts: list[UploadFile] = File(default=[]), layout_name: str | None = Form(None),
-    store: ReportingStore = Depends(get_reporting_store),
+    store: ReportingStore = Depends(get_reporting_store), settings: Settings = Depends(settings_dep),
 ) -> dict:
     """Ingests a .pptx template so the Content Planner and DeckBuilder can
     match its style (layouts, theme colors/fonts) for every subsequent
@@ -52,13 +55,13 @@ async def upload_template(
     names = [Path(f.filename or "").name for f in fonts]  # never a path from the client
     if bad := [n for n in names if font_family_of(n) is None]:
         raise HTTPException(400, f"Font files must be named <Family>-<weight>.ttf, .otf or .woff2 (got {', '.join(bad)})")
-    content = await file.read()
+    content = await read_capped(file, settings)
     with tempfile.TemporaryDirectory() as tmp:
         pptx = Path(tmp) / "template.pptx"
         pptx.write_bytes(content)
         saved = []
         for name, f in zip(names, fonts, strict=True):
-            (Path(tmp) / name).write_bytes(await f.read())
+            (Path(tmp) / name).write_bytes(await read_capped(f, settings))
             saved.append((name, Path(tmp) / name))
         style = ingest_template(store, pptx, file.filename, saved, layout_name)
     out = style.model_dump(mode="json")
@@ -93,14 +96,14 @@ def list_templates(store: ReportingStore = Depends(get_reporting_store)) -> dict
 
 
 @router.post("/datasets/upload")
-async def upload_dataset(file: UploadFile, name: str | None = None) -> dict:
+async def upload_dataset(file: UploadFile, name: str | None = None, settings: Settings = Depends(settings_dep)) -> dict:
     """Parses an uploaded CSV/XLSX into a QuantitativeDataset the caller
     then includes in a ReportRequest.datasets -- kept separate from
     POST /api/reports so the frontend can preview/adjust column kinds
     before committing to a generation run."""
     if not file.filename:
         raise HTTPException(400, "Missing filename")
-    content = await file.read()
+    content = await read_capped(file, settings)
     try:
         dataset = parse_tabular_upload(file.filename, content, name=name)
     except Exception as exc:  # noqa: BLE001 -- surfaced as a 400 with the parser's own message, not swallowed
@@ -115,7 +118,7 @@ async def upload_dataset(file: UploadFile, name: str | None = None) -> dict:
 async def upload_image(file: UploadFile, store: ReportingStore = Depends(get_reporting_store)) -> dict:
     """Stages a PNG or JPEG; a POST /api/reports request then names it by `image_id`."""
     try:
-        staged = store.stage_image(await file.read(), Path(file.filename or "image").name)
+        staged = store.stage_image(await file.read(MAX_BYTES + 1), Path(file.filename or "image").name)
     except ImageTooLarge as exc:
         raise HTTPException(413, str(exc)) from exc
     except ImageError as exc:
@@ -270,6 +273,33 @@ async def approve_storyline(report_id: str, store: ReportingStore = Depends(get_
 def get_findings(report_id: str, store: ReportingStore = Depends(get_reporting_store)) -> dict:
     _get_manifest_or_404(store, report_id)
     return {"findings": [f.model_dump(mode="json") for f in store.load_findings(report_id)]}
+
+
+def _deck_or_409(store: ReportingStore, report_id: str) -> Deck:
+    _get_manifest_or_404(store, report_id)
+    deck = store.load_deck(report_id)
+    if deck is None:
+        raise HTTPException(409, NO_DECK)
+    return deck
+
+
+@router.get("/{report_id}/deck")
+def get_deck(report_id: str, store: ReportingStore = Depends(get_reporting_store)) -> dict:
+    return _deck_or_409(store, report_id).model_dump(mode="json")
+
+
+@router.get("/{report_id}/deck/html", response_class=HTMLResponse)
+def get_deck_html(report_id: str, store: ReportingStore = Depends(get_reporting_store)) -> HTMLResponse:
+    """The deck as the house HTML, for the Refine live view; the same renderer the export starts from."""
+    deck = _deck_or_409(store, report_id)
+    request = store.load_request(report_id)
+    if request is None:
+        raise HTTPException(409, NO_DECK)
+    known = {d.dataset_id for d in request.datasets}
+    for s in deck.slides:  # a dataset deleted after the build leaves its chart slot empty instead of failing the view
+        if s.chart and s.chart.dataset_id not in known:
+            s.chart = None
+    return HTMLResponse(render_deck_html(deck, request.datasets, mode=request.layout.theme))
 
 
 @router.post("/{report_id}/render")

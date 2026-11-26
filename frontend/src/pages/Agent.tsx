@@ -1,21 +1,29 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
+import { AgentBoard } from "../components/AgentBoard";
 import { AskCard } from "../components/AskCards";
+import { ExplorationCard } from "../components/ExplorationCard";
+import { MiniAppFrame } from "../components/MiniAppFrame";
+import { Orb } from "../components/Orb";
+import { RefinePicker, RefineStage, RefineStream, useRefine, useRefineThreads } from "../components/RefineThread";
 import { StepTabs } from "../components/StepTabs";
 import {
-  answerActions, budgetLine, chipLabel, COMPOSER_COPY, composerModes, composerRequest, draftPlanFromAsk, INBOX_KIND, lineDiff,
-  askingIn, nearEnd, needsYouLine, scriptLines, streamResized, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd, type Asking, type Mode, type Selection, type ThreadRow,
+  answerActions, budgetLine, chipLabel, COMPOSER_COPY, composerModes, composerRequest, draftPlanFromAsk, exploreFromAsk, focusAfterFromAsk, INBOX_KIND, lineDiff,
+  askingIn, nearEnd, needsYouLine, REFINE_COPY, REFINE_PLACEHOLDER, refineControls, refineDoc, sameThread, scriptLines, streamResized, wasNearEnd, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd, type Asking, type Mode, type Selection, type ThreadRow,
 } from "../lib/agent";
 import { ACTIVE, canReplan, resultHref, reviewHref, stepRows, type Plan } from "../lib/plans";
 import { when } from "../lib/runs";
-import type { AgentAsk, AskThread, InboxRow } from "../types";
+import type { AgentAsk, AskThread, Exploration, InboxRow } from "../types";
 
 const POLL_MS = 3000;
 const NARROW = "(max-width: 899.98px)";
 
 type Drawer = "threads" | "stage" | null;
-type StageTab = "script" | "diff" | "audit";
-const STAGE_TABS: { id: StageTab; label: string }[] = [{ id: "script", label: "Script" }, { id: "diff", label: "Diff" }, { id: "audit", label: "Audit" }];
+type StageTab = "board" | "script" | "diff" | "audit" | "miniapp";
+const STAGE_TABS: { id: StageTab; label: string }[] = [
+  { id: "board", label: "Board" }, { id: "script", label: "Script" }, { id: "diff", label: "Diff" }, { id: "audit", label: "Audit" },
+  { id: "miniapp", label: "Mini-app" },
+];
 
 const Chip = ({ status }: { status: string }) => <span className={`status-pill status-${status}`}>{chipLabel(status)}</span>;
 
@@ -50,7 +58,10 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
 }) {
   const planId = selected?.kind === "plan" ? selected.id : null;
   const askId = selected?.kind === "ask" ? selected.id : null;
+  const explorationId = selected?.kind === "exploration" ? selected.id : null;
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [explorations, setExplorations] = useState<Exploration[]>([]);
+  const [exploration, setExploration] = useState<Exploration | null>(null);
   const [askThreads, setAskThreads] = useState<AskThread[]>([]);
   const [inbox, setInbox] = useState<InboxRow[]>([]);
   const [waiting, setWaiting] = useState<number | null>(null);
@@ -62,17 +73,48 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [drawer, setDrawer] = useState<Drawer>(null);
-  const [tab, setTab] = useState<StageTab>("script");
+  const [tab, setTab] = useState<StageTab>("board");
+  const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW).matches);
   const input = useRef<HTMLTextAreaElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const atEnd = useRef(true); // the reader was near the stream's end at the last scroll
+  const follow = useRef(true); // the stream follows new content down; the Refine picker is a list, not a chat
   const [jump, setJump] = useState(false);
   const refocus = useRef(false);
-  const current = useRef(selected); // the selection now, for a request that answers after it changed
-  current.current = selected;
+  const miniappFocus = useRef<"tab" | "button" | null>(null); // where focus goes once Show as mini-app has answered
+  // The drawer Show as mini-app opened: focus was on <body> then (the button was disabled), so the dialog would give
+  // it back there on close. It goes back to the button instead. An Ask chip closes the drawer (it covers the composer)
+  // and sends focus to the composer that now holds the question.
+  const drawerReturn = useRef<"button" | "brief" | null>(null);
+  useEffect(() => {
+    if (drawer !== null || !drawerReturn.current) return;
+    const where = drawerReturn.current;
+    drawerReturn.current = null;
+    if (where === "brief") input.current?.focus();
+    else if (document.activeElement === document.body) document.getElementById("agent-show-miniapp")?.focus();
+  }, [drawer]);
+  // The thread open now, for a request that answers after it changed. It follows the address, and our own `select`
+  // at once (the address lands a moment later); an App re-render with the same kind and id leaves it.
+  const current = useRef(selected);
+  const shownSel = useRef(selected);
+  if (!sameThread(shownSel.current, selected)) current.current = shownSel.current = selected;
+  const select = (s: Selection) => {
+    current.current = s;
+    onSelect(s);
+  };
+  // Only the loaded plan or exploration of the open thread shows; another thread's stays hidden until this one loads.
+  const shownPlan = plan && plan.id === planId ? plan : null;
+  const shownExploration = exploration && exploration.id === explorationId ? exploration : null;
   const modes = composerModes(canAsk);
-  const copy = COMPOSER_COPY[mode];
+  // A Refine thread (spec refine-chat-design): its own stream, composer copy and stage; `#/agent/refine` is the picker.
+  const refineSel = selected?.kind === "refine" ? selected.id : null;
+  const refine = useRefine(refineSel ? refineDoc(refineSel) : null);
+  const refineThreads = useRefineThreads();
+  const refineCtl = refineControls(canAsk);
+  const copy = refine.doc ? REFINE_COPY : COMPOSER_COPY[mode];
+  const sending = refine.doc ? refine.busy : busy;
+  const closed = sending || (refine.doc !== null && refine.turns === null); // a Refine thread's history must load first
 
   const loadInbox = useCallback(() => {
     api.getAgentInbox().then(setInbox).catch((e: Error) => setError(`The inbox could not be loaded: ${e.message}.`));
@@ -81,12 +123,24 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   const loadList = useCallback(() => {
     api.listPlans().then(setPlans).catch((e: Error) => setError(`Threads could not be loaded: ${e.message}.`));
     api.listAskThreads().then(setAskThreads).catch((e: Error) => setError(`Threads could not be loaded: ${e.message}.`));
+    api.listExplorations().then(setExplorations).catch((e: Error) => setError(`Threads could not be loaded: ${e.message}.`));
     loadInbox();
   }, [loadInbox]);
+  // The open plan or exploration, read through `current` when it runs; a response, value or error, that arrives after
+  // another thread was opened is dropped.
   const loadPlan = useCallback(() => {
-    if (!planId) return setPlan(null);
-    api.getPlan(planId).then(setPlan).catch((e: Error) => setError(`The plan could not be loaded: ${e.message}.`));
-  }, [planId]);
+    const s = current.current;
+    if (s?.kind !== "plan") return setPlan(null);
+    const still = () => sameThread(current.current, s);
+    api.getPlan(s.id).then((p) => still() && setPlan(p), (e: Error) => still() && setError(`The plan could not be loaded: ${e.message}.`));
+  }, []);
+  const loadExploration = useCallback(() => {
+    const s = current.current;
+    if (s?.kind !== "exploration") return setExploration(null);
+    const still = () => sameThread(current.current, s);
+    api.getExploration(s.id).then((x) => still() && setExploration(x),
+      (e: Error) => still() && setError(`The exploration could not be loaded: ${e.message}.`));
+  }, []);
   // A thread's asks; a response that lands after another thread was picked is dropped.
   const loadAsks = useCallback(() => {
     if (!askId) return;
@@ -94,29 +148,62 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   }, [askId]);
 
   useEffect(loadList, [loadList]);
-  useEffect(loadPlan, [loadPlan]);
+  // Another thread's error goes with it; an App re-render that keeps the kind and id leaves it.
+  useEffect(() => setError(null), [selected?.kind, selected?.id]);
+  useEffect(loadPlan, [loadPlan, planId]);
+  useEffect(loadExploration, [loadExploration, explorationId]);
   useEffect(loadAsks, [loadAsks]);
   // A viewer's composer opens in Plan; once the signed-in user is known to be able to ask, it opens in Ask.
   useEffect(() => setMode(composerModes(canAsk).initial), [canAsk]);
   useEffect(() => {
-    if (busy || !refocus.current) return;
+    if (sending || !refocus.current) return;
     refocus.current = false;
     input.current?.focus();
-  }, [busy]);
-  // Opening a thread shows its newest turn.
+  }, [sending]);
+  // After Show as mini-app: the Mini-app tab where the stage shows (the drawer below 900 px), or the button on failure.
+  useEffect(() => {
+    if (busy || !miniappFocus.current) return;
+    const where = miniappFocus.current;
+    miniappFocus.current = null;
+    const scope = drawer === "stage" ? document.getElementById("agent-drawer") : document.querySelector(".agent-stage");
+    (where === "tab" ? scope?.querySelector<HTMLElement>('[data-tab="miniapp"]') : document.getElementById("agent-show-miniapp"))?.focus();
+  }, [busy, tab, drawer]);
+  // A plan just drafted from an exploration opens at its brief, which takes focus (WCAG 2.4.3); the stream does not
+  // follow it down until another thread is opened or the reader sends.
+  const briefFirst = useRef<string | null>(null);
+  // Opening a thread shows its newest turn and its Board; the Refine picker opens at its heading, a just-drafted plan
+  // at its brief.
   useLayoutEffect(() => {
-    atEnd.current = true;
+    setTab("board");
+    if (briefFirst.current !== null && briefFirst.current !== planId) briefFirst.current = null;
+    const picker = refineSel === "";
+    const top = picker || briefFirst.current !== null;
+    atEnd.current = !top;
+    follow.current = !top;
     setJump(false);
     const el = scroller.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [planId, askId]);
+    if (el && briefFirst.current === null) el.scrollTop = picker ? 0 : el.scrollHeight;
+  }, [planId, askId, explorationId, refineSel]);
+  const briefFocus = useRef<string | null>(null); // the drafted plan whose brief has yet to take focus, once
+  useEffect(() => {
+    if (!shownPlan || shownPlan.id !== briefFocus.current) return;
+    briefFocus.current = null; // a reload (every 3 s while the plan runs) leaves scroll and focus where the reader put them
+    const h = document.getElementById("agent-brief-h");
+    h?.scrollIntoView({ block: "start" });
+    h?.focus({ preventScroll: true });
+  }, [shownPlan]);
   // When the stream grows, or its box shrinks under a taller composer, follow it down only if the reader was at the end.
   useEffect(() => {
     const el = scroller.current;
     if (!el || !content.current) return;
     let prev = { height: el.scrollHeight, box: el.clientHeight };
     const ro = new ResizeObserver(() => {
-      const next = streamResized({ wasNearEnd: atEnd.current, contentGrew: el.scrollHeight > prev.height, boxShrank: el.clientHeight < prev.box, nowNearEnd: nearEnd(el) });
+      if (!follow.current) {
+        prev = { height: el.scrollHeight, box: el.clientHeight };
+        return;
+      }
+      const before = { scrollHeight: prev.height, clientHeight: prev.box };
+      const next = streamResized({ wasNearEnd: wasNearEnd(atEnd.current, el.scrollTop, before), contentGrew: el.scrollHeight > prev.height, boxShrank: el.clientHeight < prev.box, nowNearEnd: nearEnd(el) });
       prev = { height: el.scrollHeight, box: el.clientHeight };
       if (next.scrollToEnd) el.scrollTop = el.scrollHeight;
       if (next.jump !== null) setJump(next.jump);
@@ -142,6 +229,10 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   // grows the stream, which then follows it down. (Scrolling here, before that turn lands, would fire a scroll event
   // that reads the grown stream as scrolled up.)
   function followOwnSend() {
+    if (briefFirst.current !== null) {
+      briefFirst.current = null;
+      follow.current = true;
+    }
     atEnd.current = true;
     setJump(false);
   }
@@ -158,14 +249,14 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
     input.current?.focus();
   }, [focusToken, canAsk]);
   // The thread list shows each plan's chip: reload it when the open plan's status changes.
-  const planStatus = plan?.status;
+  const planStatus = shownPlan?.status;
   const shownStatus = useRef(planStatus);
   useEffect(() => {
     if (shownStatus.current && planStatus && planStatus !== shownStatus.current) loadList(); // a change, not the first load
     shownStatus.current = planStatus;
   }, [planStatus, loadList]);
   // While the plan runs or waits for a review, re-read it and the inbox every 3 s (D6).
-  const active = plan !== null && ACTIVE.has(plan.status);
+  const active = shownPlan !== null && ACTIVE.has(shownPlan.status);
   useEffect(() => {
     if (!active) return;
     const t = setInterval(() => { loadPlan(); loadInbox(); }, POLL_MS);
@@ -174,46 +265,55 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   // Widening past 900 px shows the columns again, so an open drawer goes.
   useEffect(() => {
     const mq = window.matchMedia(NARROW);
-    const onChange = () => { if (!mq.matches) setDrawer(null); };
+    const onChange = () => {
+      setNarrow(mq.matches);
+      if (!mq.matches) setDrawer(null);
+    };
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, []);
 
   async function act(fn: () => Promise<unknown>): Promise<boolean> {
+    const from = current.current;
     setBusy(true);
     setError(null);
     try {
       await fn();
       loadPlan();
+      loadExploration();
       loadList();
       return true;
     } catch (e) {
-      setError((e as Error).message);
+      if (sameThread(current.current, from)) setError((e as Error).message); // else it belongs to the thread left
       return false;
     } finally {
       setBusy(false);
     }
   }
 
-  /** An ask: a follow-up in the selected ask thread, else a new thread, which is selected once it answers. */
-  async function ask(question: string, newThread: boolean) {
+  /** An ask: a follow-up in the selected ask thread, else a new thread. Its answer lands, and a composer ask clears
+   * the composer, only if the reader is still where it was sent from; a new thread is then selected. */
+  async function ask(question: string, newThread: boolean, fromComposer = false) {
     followOwnSend();
     const req = composerRequest("Ask", question, newThread ? null : selected);
-    if (!req.body.thread_id && selected) onSelect(null); // no thread is selected while a new one's first ask runs
+    if (!req.body.thread_id && selected) select(null); // no thread is selected while a new one's first ask runs
+    const sentFrom: Selection = req.body.thread_id ? { kind: "ask", id: req.body.thread_id } : null;
     setAsking({ question, threadId: req.body.thread_id ?? null });
     setBusy(true);
     setError(null);
     try {
       const a = await api.agentPost<AgentAsk>(req.path, req.body);
-      if (!req.body.thread_id) {
-        setAsks([a]);
-        onSelect({ kind: "ask", id: a.thread_id });
-      } else if (current.current?.kind === "ask" && current.current.id === a.thread_id) {
-        setAsks((xs) => [...xs, a]);
+      if (sameThread(current.current, sentFrom)) {
+        if (fromComposer) setText("");
+        if (sentFrom) setAsks((xs) => [...xs, a]);
+        else {
+          setAsks([a]);
+          select({ kind: "ask", id: a.thread_id });
+        }
       }
       loadList();
     } catch (e) {
-      setError((e as Error).message);
+      if (sameThread(current.current, sentFrom)) setError((e as Error).message); // the text stays in the composer
     } finally {
       setAsking(null);
       setBusy(false);
@@ -223,16 +323,24 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
 
   async function send() {
     const t = text.trim();
-    if (busy || !t) return;
-    if (mode === "Ask") {
-      setText("");
-      return ask(t, false);
+    if (closed || !t) return;
+    if (refine.doc) {
+      followOwnSend();
+      const sentFrom = current.current;
+      const ok = await refine.send(t);
+      if (!sameThread(current.current, sentFrom)) return; // another thread is open now
+      if (ok) setText("");
+      refocus.current = true; // the text box stays disabled while the turn runs
+      return;
     }
-    const req = composerRequest("Plan", t, selected); // a new plan opens at its end; a failed one leaves the stream be
+    if (mode === "Ask") return ask(t, false, true); // the text stays in the composer until the answer lands
+    const req = composerRequest(mode, t, selected); // a new plan opens at its end; a failed one leaves the stream be
+    const sentFrom = current.current;
     await act(async () => {
-      const p = await api.agentPost<Plan>(req.path, req.body);
+      const created = await api.agentPost<Plan | Exploration>(req.path, req.body);
+      if (!sameThread(current.current, sentFrom)) return; // the reader moved on: the list shows the new thread
       setText("");
-      onSelect({ kind: "plan", id: p.id });
+      select({ kind: mode === "Explore" ? "exploration" : "plan", id: created.id });
     });
   }
 
@@ -251,7 +359,13 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
     loadList();
   }
 
-  const rows = threadRows(plans, askThreads);
+  function explored(askIdOf: string, e: Exploration) {
+    const link = { exploration_id: e.id, question: e.question, status: e.status, label: e.label };
+    setAsks((xs) => xs.map((x) => (x.id === askIdOf ? { ...x, explorations: [...x.explorations, link] } : x)));
+    loadList();
+  }
+
+  const rows = threadRows(plans, askThreads, explorations, refineThreads.threads);
   const isSelected = (r: ThreadRow) => r.kind === selected?.kind && r.id === selected.id;
   // `id` keeps the column's and the drawer's ids apart; `close` is set inside a drawer.
   const threads = (id: string, close?: () => void) => (
@@ -260,6 +374,13 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
         <h2 id={`${id}-h`}>Threads</h2>
         {close && <button type="button" className="link-button" onClick={close}>Close</button>}
       </div>
+      {refineThreads.error && <p className="error-text">{refineThreads.error}</p>}
+      {refineCtl.picker && (
+        <button type="button" className="secondary agent-refine-new" aria-current={refineSel === "" ? "true" : undefined}
+          onClick={() => { close?.(); select({ kind: "refine", id: "" }); }}>
+          Refine a document
+        </button>
+      )}
       {rows.length === 0 ? (
         <p className="muted">No threads yet. Ask a question or write a brief to start one.</p>
       ) : (
@@ -267,7 +388,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
           {rows.map((r) => (
             <li key={`${r.kind}:${r.id}`} className={isSelected(r) ? "selected" : undefined}>
               <button type="button" className="link-button" aria-current={isSelected(r) ? "true" : undefined}
-                onClick={() => { close?.(); onSelect({ kind: r.kind, id: r.id }); }}>
+                onClick={() => { close?.(); select({ kind: r.kind, id: r.id }); }}>
                 {r.title}
               </button>
               <Chip status={r.status} />
@@ -291,25 +412,48 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
       {waiting !== null && <p className="agent-inbox-foot"><a href="#/review" onClick={close}>{needsYouLine(waiting)}</a></p>}
     </>
   );
-  const stage = (id: string, close?: () => void) => (
+  const closeButton = (close?: () => void) => close && <button type="button" className="link-button" onClick={close}>Close</button>;
+  const stage = (id: string, close?: () => void) => refineSel !== null ? (
+    <RefineStage refine={refine} canEdit={refineCtl.undo} idPrefix={id} head={closeButton(close)} />
+  ) : (
     <>
       <div className="agent-side-head">
         <StepTabs label="Stage" tabs={STAGE_TABS} active={tab} onSelect={(t) => setTab(t as StageTab)} />
         {close && <button type="button" className="link-button" onClick={close}>Close</button>}
       </div>
       <div id={`${id}-panel`} role="tabpanel" aria-label={STAGE_TABS.find((t) => t.id === tab)!.label}>
-        {!plan ? (
-          <p className="muted">The selected plan’s script, changes and audit trail show here.</p>
+        {tab === "miniapp" ? (
+          shownExploration && shownExploration.miniapp_html != null ? (
+            <MiniAppFrame key={shownExploration.id} title={`Mini-app: ${shownExploration.question}`} html={shownExploration.miniapp_html} asks={shownExploration.miniapp_asks ?? []}
+              onAsk={(q) => {
+                if (canAsk) setMode("Ask");
+                setText(q);
+                if (drawer === null) input.current?.focus();
+                else { drawerReturn.current = "brief"; setDrawer(null); }
+              }} />
+          ) : (
+            <p className="muted">{shownExploration ? "Show as mini-app, on a done exploration, builds a small page for its result here." : "A done exploration can be shown here as a mini-app."}</p>
+          )
+        ) : tab === "board" ? (
+          shownPlan ? (
+            <AgentBoard key={shownPlan.id} planId={shownPlan.id} planStatus={shownPlan.status} idPrefix={id} />
+          ) : shownExploration ? (
+            <AgentBoard key={shownExploration.id} kind="exploration" planId={shownExploration.id} planStatus={shownExploration.status} idPrefix={id} />
+          ) : (
+            <p className="muted">The selected plan’s or exploration’s board shows here.</p>
+          )
+        ) : !shownPlan ? (
+          <p className="muted">{explorationId ? "An exploration has no script, changes or audit trail: its code and tool calls are in the stream." : "The selected plan’s script, changes and audit trail show here."}</p>
         ) : tab === "script" ? (
           <pre className="mono agent-script" aria-label="Plan script, read-only">
-            {scriptLines(plan.script).map((l) => (
+            {scriptLines(shownPlan.script).map((l) => (
               <span key={l.n} className="agent-script-line"><span className="agent-ln" aria-hidden="true">{l.n}</span><span>{l.text}{"\n"}</span></span>
             ))}
           </pre>
         ) : tab === "diff" ? (
-          <DiffTab plan={plan} />
+          <DiffTab plan={shownPlan} />
         ) : (
-          <AuditTab plan={plan} />
+          <AuditTab plan={shownPlan} />
         )}
       </div>
     </>
@@ -325,6 +469,7 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
   return (
     <div className="page agent-page">
       <div className="agent-head">
+        <Orb place="agent" working={asking !== null} />
         <h1>Agent</h1>
         <div className="agent-drawer-buttons">
           {drawerButton("threads", "Threads")}
@@ -333,16 +478,30 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
       </div>
       {error && <p className="error-text" role="alert">{error}</p>}
 
-      <div className="agent-shell">
+      <div className={refineSel !== null ? "agent-shell agent-shell-refine" : "agent-shell"}>
         <aside className="agent-side agent-threads" aria-labelledby="agent-threads-h">{threads("agent-threads")}</aside>
 
         <section className="agent-stream" aria-label="Stream">
-          <div className="agent-scroll" ref={scroller} onScroll={onStreamScroll} tabIndex={0} aria-label="Conversation">
+          <div className="agent-scroll" ref={scroller} onScroll={onStreamScroll} tabIndex={0} role="region" aria-label="Conversation">
           <div ref={content}>
-          {plan && planId ? (
-            <Stream key={plan.id} plan={plan} busy={busy} act={act} />
-          ) : askId || askingIn(asking, null) ? (
-            <AskStream asks={asks.filter((a) => a.thread_id === askId)} asking={askingIn(asking, askId)} canAsk={canAsk} onDrafted={drafted} />
+          {refineSel !== null ? (
+            refine.doc ? <RefineStream refine={refine} emptyLine={refineCtl.emptyLine} /> : <RefinePicker />
+          ) : shownExploration ? (
+            <ExplorationCard key={shownExploration.id} exploration={shownExploration} busy={busy} onAccept={() => act(() => api.acceptExploration(shownExploration.id))}
+              onMiniapp={async () => {
+                const made = await act(() => api.createMiniapp(shownExploration.id));
+                miniappFocus.current = made ? "tab" : "button"; // the button was disabled while it ran: focus fell to <body>
+                if (!made) return;
+                setTab("miniapp");
+                if (!window.matchMedia(NARROW).matches) return;
+                setDrawer("stage");
+                drawerReturn.current = "button";
+              }}
+              onDrafted={(p) => { briefFirst.current = briefFocus.current = p.id; loadList(); select({ kind: "plan", id: p.id }); }} />
+          ) : shownPlan ? (
+            <Stream key={shownPlan.id} plan={shownPlan} busy={busy} act={act} />
+          ) : askId || (selected === null && askingIn(asking, null)) ? (
+            <AskStream asks={asks.filter((a) => a.thread_id === askId)} asking={askingIn(asking, askId)} canAsk={canAsk} onDrafted={drafted} onExplored={explored} />
           ) : (
             <p className="muted agent-empty">Pick a thread, ask a question, or describe the research you want below. For research, a planner writes a short script that chains ARP’s runs; nothing runs until you approve it.</p>
           )}
@@ -353,29 +512,35 @@ export function Agent({ selected, onSelect, canAsk, focusToken, pendingAsk, onPe
               <button type="button" className="secondary" onClick={jumpToLatest}>Jump to latest</button>
             </div>
           )}
+          {(refineSel === null || (refine.doc && refineCtl.composer)) && (
           <form className="agent-composer" onSubmit={(e) => { e.preventDefault(); send(); }}>
+            {!refine.doc && (
             <div className="agent-modes" role="group" aria-label="Mode">
               {modes.modes.map((m) => (
                 <button key={m} type="button" className="secondary" aria-pressed={mode === m} onClick={() => setMode(m)}>{m}</button>
               ))}
             </div>
+            )}
             <label className="visually-hidden" htmlFor="agent-brief">{copy.label}</label>
-            <textarea id="agent-brief" ref={input} rows={2} value={text} disabled={busy} onChange={(e) => setText(e.target.value)}
+            <textarea id="agent-brief" ref={input} rows={2} value={text} disabled={closed} onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => {
                 if (sendsComposer({ key: e.key, shiftKey: e.shiftKey, isComposing: e.nativeEvent.isComposing })) {
                   e.preventDefault();
                   send();
                 }
               }}
-              aria-describedby="agent-brief-help" maxLength={mode === "Ask" ? 1000 : undefined} placeholder={copy.placeholder} />
+              aria-describedby="agent-brief-help" maxLength={mode === "Ask" && !refine.doc ? 1000 : undefined} placeholder={refine.doc ? REFINE_PLACEHOLDER[refine.doc.kind] : copy.placeholder} />
             <div className="agent-composer-foot">
               <p id="agent-brief-help" className="muted">{copy.help}</p>
-              <button type="submit" disabled={busy || !text.trim()}>{busy ? copy.sending : copy.submit}</button>
+              <button type="submit" disabled={closed || !text.trim()}>{sending ? copy.sending : copy.submit}</button>
             </div>
+            {refine.doc && refine.error && <p className="error-text" role="alert">{refine.error}</p>}
           </form>
+          )}
         </section>
 
-        <aside className="agent-side agent-stage" aria-label="Stage">{stage("agent-stage")}</aside>
+        {/* Below 900 px the stage lives in its drawer only, so the Board polls and draws once. */}
+        <aside className={refineSel !== null ? "agent-side agent-stage refine-stage" : "agent-side agent-stage"} aria-label="Stage">{!narrow && stage("agent-stage")}</aside>
       </div>
       {drawer && (
         <DrawerDialog key={drawer} side={drawer === "threads" ? "left" : "right"} label={drawer === "threads" ? "Threads" : "Stage"} onClose={() => setDrawer(null)}>
@@ -392,13 +557,16 @@ function Stream({ plan, busy, act }: { plan: Plan; busy: boolean; act: (fn: () =
   return (
     <>
       <article className="card agent-card" aria-labelledby="agent-brief-h">
-        <h2 id="agent-brief-h">{plan.brief}</h2>
+        <h2 id="agent-brief-h" tabIndex={-1}>{plan.brief}</h2>
         <p className="agent-meta">
           <Chip status={plan.status} /> <span className="muted">version {plan.version}</span>
           {plan.approved_by && <span className="muted"> · approved by {plan.approved_by}</span>}
         </p>
         {plan.source_ask && (
           <p className="agent-meta"><a href={`#/agent/ask/${encodeURIComponent(plan.source_ask.thread_id)}`}>From ask: {plan.source_ask.question}</a></p>
+        )}
+        {plan.source_exploration_id && plan.source_exploration && (
+          <p className="agent-meta"><a href={`#/agent/exploration/${encodeURIComponent(plan.source_exploration_id)}`}>From exploration: {plan.source_exploration.question}</a></p>
         )}
         {(plan.status === "approved" || ACTIVE.has(plan.status)) && (
           <div className="toolbar">
@@ -483,14 +651,16 @@ function Stream({ plan, busy, act }: { plan: Plan; busy: boolean; act: (fn: () =
   );
 }
 
+type FromAsk = { onDrafted: (askId: string, plan: Plan) => void; onExplored: (askId: string, e: Exploration) => void };
+
 /** An ask thread, oldest ask first: each question, then its answer card or error, the buttons for an answer, and a
- * link card per plan drafted from it. `asking` is the question in flight, shown with `Working…`. */
-function AskStream({ asks, asking, canAsk, onDrafted }: {
-  asks: AgentAsk[]; asking: string | null; canAsk: boolean; onDrafted: (askId: string, plan: Plan) => void;
+ * link card per plan or exploration started from it. `asking` is the question in flight, shown with `Working…`. */
+function AskStream({ asks, asking, canAsk, onDrafted, onExplored }: FromAsk & {
+  asks: AgentAsk[]; asking: string | null; canAsk: boolean;
 }) {
   return (
     <ol className="agent-calls" aria-label="Asks">
-      {asks.map((a) => <AskTurn key={a.id} ask={a} canAsk={canAsk} onDrafted={onDrafted} />)}
+      {asks.map((a) => <AskTurn key={a.id} ask={a} canAsk={canAsk} onDrafted={onDrafted} onExplored={onExplored} />)}
       {asking !== null && (
         <li className="ask-turn">
           <p className="ask-question">{asking}</p>
@@ -501,9 +671,23 @@ function AskStream({ asks, asking, canAsk, onDrafted }: {
   );
 }
 
-function AskTurn({ ask, canAsk, onDrafted }: { ask: AgentAsk; canAsk: boolean; onDrafted: (askId: string, plan: Plan) => void }) {
+function AskTurn({ ask, canAsk, onDrafted, onExplored }: FromAsk & { ask: AgentAsk; canAsk: boolean }) {
   const [drafting, setDrafting] = useState(false);
+  const [exploring, setExploring] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A pressed button is disabled while its request runs, so focus drops to <body>: once the request ends, focus moves
+  // to the new link card, or back to the button on failure (WCAG 2.4.3). Kept until that element has rendered.
+  const [focusNext, setFocusNext] = useState<ReturnType<typeof focusAfterFromAsk> | null>(null);
+  const turn = useRef<HTMLLIElement>(null);
+  useEffect(() => {
+    if (!focusNext || !turn.current) return;
+    const target = "href" in focusNext
+      ? [...turn.current.querySelectorAll<HTMLAnchorElement>(".agent-link-card a")].find((a) => a.getAttribute("href") === focusNext.href)
+      : [...turn.current.querySelectorAll<HTMLButtonElement>(".agent-ask-actions button")].find((b) => b.textContent === focusNext.button && !b.disabled);
+    if (!target) return;
+    target.focus();
+    setFocusNext(null);
+  }, [focusNext, ask.plans, ask.explorations, drafting, exploring]);
   async function draft() {
     setDrafting(true);
     setError(null);
@@ -511,20 +695,37 @@ function AskTurn({ ask, canAsk, onDrafted }: { ask: AgentAsk; canAsk: boolean; o
     setDrafting(false);
     if (out.ok) onDrafted(ask.id, out.plan);
     else setError(out.error);
+    setFocusNext(focusAfterFromAsk("plan", out));
+  }
+  async function explore() {
+    setExploring(true);
+    setError(null);
+    const out = await exploreFromAsk(ask, (path, body) => api.agentPost<Exploration>(path, body));
+    setExploring(false);
+    if (out.ok) onExplored(ask.id, out.exploration);
+    else setError(out.error);
+    setFocusNext(focusAfterFromAsk("exploration", out));
   }
   return (
-    <li className="ask-turn">
+    <li className="ask-turn" ref={turn}>
       <p className="ask-question">{ask.question}</p>
       {ask.error ? <p className="ask-card error-text">{ask.error}</p> : ask.response && <AskCard response={ask.response} />}
       {!ask.error && answerActions(canAsk).length > 0 && (
         <div className="agent-ask-actions">
           <button type="button" className="secondary" disabled={drafting} onClick={draft}>Draft a plan</button>
+          <button type="button" className="secondary" disabled={exploring} onClick={explore}>Explore</button>
         </div>
       )}
       {error && <p className="error-text" role="alert">{error}</p>}
       {ask.plans.map((p) => (
         <p key={p.plan_id} className="agent-link-card">
           <a href={`#/agent/${encodeURIComponent(p.plan_id)}`}>Plan: {threadTitle(p.brief)}</a> <Chip status={p.status} />
+        </p>
+      ))}
+      {ask.explorations.map((x) => (
+        <p key={x.exploration_id} className="agent-link-card">
+          <a href={`#/agent/exploration/${encodeURIComponent(x.exploration_id)}`}>Exploration: {threadTitle(x.question)}</a>{" "}
+          <span className="agent-badge">{x.label}</span>
         </p>
       ))}
     </li>

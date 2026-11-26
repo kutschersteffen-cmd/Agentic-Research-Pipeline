@@ -5,7 +5,7 @@ import { ReviewControls, decisionLabel } from "../components/ReviewControls";
 import { RunScoringPanel } from "../components/RunScoring";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import { WalkthroughLink } from "../components/WalkthroughLink";
-import { TRANSITION_PLAN_TEMPLATE, keptRuns, notInRun, onlyNeedsYou, periodText, resultRows, walkTalkLine, type ResultRow } from "../lib/argusFlow";
+import { TRANSITION_PLAN_TEMPLATE, earlierFailedLine, flowReviewHref, keptRuns, notInRun, onlyNeedsYou, periodText, readEach, resultRows, walkTalkLine, type ResultRow } from "../lib/argusFlow";
 import { errorDetail } from "../lib/barrier";
 import type { ArgusFlow as Flow, DataPointSchema, ExtractionRecord, ReviewDecision, ReviewItem, TransitionPlanIndicatorDef } from "../types";
 
@@ -48,6 +48,7 @@ export function ArgusResults({ flow }: { flow: Flow }) {
   const [mineOnly, setMineOnly] = useState(false);
   const [source, setSource] = useState<ActiveSource | null>(null);
   const [error, setError] = useState("");
+  const [earlierFailed, setEarlierFailed] = useState<string[]>([]);
   const [records, setRecords] = useState<ExtractionRecord[]>([]);
   const [schema, setSchema] = useState<DataPointSchema | null>(null);
   const [indicators, setIndicators] = useState<TransitionPlanIndicatorDef[] | null>(null);
@@ -68,19 +69,21 @@ export function ArgusResults({ flow }: { flow: Flow }) {
       // a company set to "Skip, keep earlier results" has its values in its earlier run, and is reviewed there;
       // each earlier run is read once, however many of its companies are kept
       const runs = [...new Set(earlier.map((k) => k.run_id))];
-      const [current, ...keptRows] = await Promise.all([runRows(runId), ...runs.map((id) => runRows(id))]);
+      const [current, earlierRead] = await Promise.all([runRows(runId), readEach(runs, runRows)]);
+      const keptRows = earlierRead.loaded.map((l) => ({ ...l.value, runId: l.runId }));
+      setEarlierFailed(earlierRead.failed);
       const keptFrom = new Map(earlier.map((k) => [`${k.run_id}/${k.company_id}`, k.date]));
       const all: Row[] = [
         ...current.rows.map((r) => ({ ...r, runId })),
-        ...keptRows.flatMap((k, i) => k.rows.flatMap((r) => {
-          const date = keptFrom.get(`${runs[i]}/${r.companyId}`);
-          return date ? [{ ...r, runId: runs[i], kept: date }] : [];
+        ...keptRows.flatMap((k) => k.rows.flatMap((r) => {
+          const date = keptFrom.get(`${k.runId}/${r.companyId}`);
+          return date ? [{ ...r, runId: k.runId, kept: date }] : [];
         })),
       ];
       setRows([...all.filter((r) => r.item), ...all.filter((r) => !r.item)]);
       setInRun(new Set(current.records.map((r) => r.company_id)));
       setRecords(current.records.filter((r) => Array.isArray(r.fields)));
-      setDecisions(Object.fromEntries([[runId, current.decisions], ...keptRows.map((k, i) => [runs[i], k.decisions])]));
+      setDecisions(Object.fromEntries([[runId, current.decisions], ...keptRows.map((k) => [k.runId, k.decisions])]));
     } catch (e) {
       setError(errorDetail(e as Error));
     }
@@ -117,6 +120,7 @@ export function ArgusResults({ flow }: { flow: Flow }) {
         <FileLink className="button-link" url={api.exportRunCsvUrl(runId)} name={`${runId}.csv`}>Download CSV</FileLink>
       </div>
       {error && <p className="error-text" role="alert">{error}</p>}
+      {earlierFailed.map((id) => <p key={id} className="error-text" role="alert">{earlierFailedLine(id)}</p>)}
       {missing.length > 0 && (
         <p className="muted" role="note">
           This run covers {flow.companies.length - missing.length} of {flow.companies.length} companies. Not in it:{" "}
@@ -126,7 +130,7 @@ export function ArgusResults({ flow }: { flow: Flow }) {
               {m.name}
               {m.earlier && (
                 <>
-                  {" "}(kept from the extraction of {m.earlier.date}, <a href={`#/review/extraction/${m.earlier.run_id}`}>open</a>)
+                  {" "}(kept from the extraction of {m.earlier.date}, <a href={flowReviewHref(choice && { kind: choice.kind, profile: choice.profile ?? undefined }, m.earlier.run_id)}>open</a>)
                 </>
               )}
             </span>

@@ -20,7 +20,7 @@ from arp.orchestration.review_queue import effective_decisions
 from arp.research.pipeline import load_theme_run_matches, rank_theme_matches
 from arp.research.results_diff import diff_theme_results
 from arp.schemas.common import JobStatus
-from arp.schemas.review import field_item_key, period_key
+from arp.schemas.review import results_field_key
 from arp.schemas.thematic import CompanyMatch
 from arp.schemas.transition_barrier import BarrierRefreshFinding
 from arp.storage.run_store import RunStore
@@ -207,13 +207,14 @@ def diff_theme_runs(run_id_a: str, run_id_b: str, run_store: RunStore = Depends(
     return diff.model_dump(mode="json")
 
 
-def _reviewed_value(record: dict, f: dict, decided: dict[str, dict]) -> tuple[object, object, str]:
-    """A field's value and canonical value as an export may carry them, and its review status. A value routed to
-    review leaves the app only once a person approved it (as corrected, when it was corrected); a value that needed
-    no review, or was written before routing, is exported as it is."""
-    if f.get("route") not in ("review", "hold"):
+def _reviewed_value(record: dict, f: dict, decided: dict[str, dict], queued: dict[str, dict], decided_keys: set[str]) -> tuple[object, object, str]:
+    """A field's value and canonical value as an export may carry them, and its review status. A value is held back
+    while a person still has to decide on it: it was routed to review or hold, has a review item in the run's queue
+    (a conflict with an accepted fact, say) or has a decision row. It leaves the app once a person approved it (as
+    corrected, when it was corrected); a kept conflict exports the accepted value. Anything else is exported as it is."""
+    key = results_field_key(record, f)
+    if f.get("route") not in ("review", "hold") and key not in queued and key not in decided_keys:
         return f["value"], f.get("canonical_value"), ""
-    key = field_item_key(record["issuer_key"], f["field_id"], period_key(f)) if record.get("issuer_key") else f"{record['company_id']}:{f.get('field_id')}"
     decision = decided.get(key)
     kind = decision["decision"] if decision else "awaiting review"
     if kind == "approve":
@@ -221,7 +222,89 @@ def _reviewed_value(record: dict, f: dict, decided: dict[str, dict]) -> tuple[ob
     if kind in ("correct", "edit"):
         corrected = decision.get("corrected_value") or decision.get("edited_value") or {}
         return corrected.get("value"), None, kind  # the canonical value belonged to the value that was replaced
+    row = queued.get(key)
+    if kind == "reject" and row and row.get("kind") == "conflict" and "accepted" in row:
+        return row["accepted"].get("value"), None, kind
     return None, None, kind
+
+
+_TNFD_CSV_HEADER = [
+    "company_id", "ticker", "name", "as_of", "framework_version", "item_type", "pillar", "recommendation_id", "category",
+    "metric_kind", "sector_name", "sector_guidance_status", "sector_guidance_version", "metric_no", "is_core_sector_metric",
+    "metric_name", "leap_stage", "disclosed", "summary", "consideration", "materiality_basis", "disclosure_scope",
+    "location_specificity", "cross_framework_links", "time_horizons", "iplc_engagement_described", "value", "unit",
+    "baseline_year", "confidence", "grounded", "verifier_notes", "review_flags", "overall_confidence", "needs_review",
+    "review_status",
+]
+# What an item found, as opposed to which item it is: held back while a person still has to decide on the record.
+_TNFD_HELD_BACK = _TNFD_CSV_HEADER[_TNFD_CSV_HEADER.index("disclosed"):_TNFD_CSV_HEADER.index("verifier_notes") + 1]
+
+
+def _tnfd_horizons(horizons: dict | None) -> list[tuple[str, str]]:
+    """Run results sit in Postgres JSONB, which does not keep a dict's key order: short, medium, long first, then the rest."""
+    horizons = horizons or {}
+    named = [k for k in ("short", "medium", "long") if k in horizons]
+    return [(k, horizons[k]) for k in named + [k for k in horizons if k not in named]]
+
+
+def _tnfd_csv_rows(records: list[dict], decided: dict[str, dict], queued: set[str], decided_keys: set[str]) -> list[list]:
+    """One row per disclosure, core metric, sector metric, LEAP consideration and general-requirements block, per
+    company. A record that waits for review (or was rejected, corrected or escalated) keeps its identity columns and
+    loses what its items found; `review_status` says why."""
+    from arp.schemas.tnfd import PILLAR_BY_RECOMMENDATION, RecommendationId
+
+    def joined(values: list | None) -> str:
+        return "; ".join(str(v) for v in values or [])
+
+    out: list[list] = []
+    for rec in records:
+        key = rec["company_id"]
+        start = len(out)
+        status, held = "", False
+        if rec.get("needs_review") or key in queued or key in decided_keys:
+            decision = decided.get(key)
+            status = decision["decision"] if decision else "awaiting review"
+            held = status != "approve"
+        record_cols = {
+            "company_id": key, "ticker": rec.get("ticker"), "name": rec["name"], "as_of": rec["as_of"],
+            "framework_version": rec["framework_version"], "overall_confidence": rec["overall_confidence"],
+            "needs_review": rec["needs_review"], "review_status": status,
+        }
+
+        def add(item_type: str, *, _cols=record_cols, _held=held, **cells) -> None:
+            row = {**_cols, "item_type": item_type, **cells}
+            if _held:
+                row.update({c: None for c in _TNFD_HELD_BACK})
+            out.append([row.get(c) for c in _TNFD_CSV_HEADER])
+
+        for d in rec.get("disclosures", []):
+            rid = RecommendationId(d["recommendation_id"])
+            add("disclosure", pillar=PILLAR_BY_RECOMMENDATION[rid].value, recommendation_id=rid.value,
+                leap_stage=d.get("leap_stage_reference"), disclosed=d["disclosed"], summary=d.get("summary"),
+                materiality_basis=d.get("materiality_basis"), disclosure_scope=d.get("disclosure_scope"),
+                confidence=d["confidence"], grounded=d["grounded"], verifier_notes=d.get("verifier_notes"),
+                review_flags=joined(d.get("review_flags")))
+        for m in rec.get("core_global_metrics", []):
+            add("core_metric", category=m["category"], metric_kind=m["metric_kind"], metric_name=m["metric_name"],
+                value=m.get("value"), unit=m.get("unit"), baseline_year=m.get("baseline_year"), confidence=m["confidence"],
+                grounded=m["grounded"], verifier_notes=m.get("verifier_notes"), review_flags=joined(m.get("review_flags")))
+        for m in rec.get("sector_metrics", []):
+            add("sector_metric", sector_name=m["sector_name"], sector_guidance_status=m["sector_guidance_status"],
+                sector_guidance_version=m["sector_guidance_version"], metric_no=m.get("metric_no"),
+                is_core_sector_metric=m["is_core_sector_metric"], metric_name=m["metric_name"], value=m.get("value"),
+                unit=m.get("unit"), baseline_year=m.get("baseline_year"), confidence=m["confidence"],
+                grounded=m["grounded"], verifier_notes=m.get("verifier_notes"), review_flags=joined(m.get("review_flags")))
+        for c in rec.get("sector_leap_considerations", []):
+            add("leap_consideration", sector_name=c["sector_name"], leap_stage=c["leap_stage"],
+                consideration=c["consideration"], review_flags=joined(c.get("review_flags")))
+        if g := rec.get("general_requirements"):
+            add("general_requirements", materiality_basis=g["materiality_approach"], disclosure_scope=g["disclosure_scope"],
+                location_specificity=g["location_specificity"], cross_framework_links=joined(g.get("cross_framework_links")),
+                time_horizons="; ".join(f"{k}={v}" for k, v in _tnfd_horizons(g.get("time_horizons_defined"))),
+                iplc_engagement_described=g["iplc_engagement_described"])
+        if len(out) == start:
+            add("none")
+    return out
 
 
 @router.get("/{run_id}/export.csv")
@@ -242,9 +325,11 @@ def export_run_csv(run_id: str, run_store: RunStore = Depends(get_run_store)) ->
         writer.writerow(["company_id", "ticker", "name", "field_name", "value", "confidence", "grounded", "needs_review", "verifier_notes",
              "value_state", "unit", "canonical_value", "canonical_unit", "period_start", "period_end", "basis", "review_status"])
         decided = effective_decisions(run_store, run_id)
+        queued = {r["item_key"]: r for r in run_store.read_review_queue(run_id) if r.get("item_key")}
+        decided_keys = {d["item_key"] for d in run_store.read_decisions(run_id)}
         for record in rows:
             for f in record.get("fields", []):
-                value, canonical, status = _reviewed_value(record, f, decided)
+                value, canonical, status = _reviewed_value(record, f, decided, queued, decided_keys)
                 writer.writerow(
                     [record["company_id"], record.get("ticker"), record["name"], f["field_name"], value,
                      f["confidence"], f["grounded"], record["needs_review"], f.get("verifier_notes"),
@@ -299,6 +384,12 @@ def export_run_csv(run_id: str, run_store: RunStore = Depends(get_run_store)) ->
                  BarrierRefreshFinding.model_validate(record).needs_review,
                  record.get("detail"), record.get("source_quote"), record.get("checked_at")]
             )
+    elif manifest.run_type == "tnfd":
+        writer = csv.writer(buf)
+        writer.writerow(_TNFD_CSV_HEADER)
+        queued = {r["item_key"] for r in run_store.read_review_queue(run_id) if r.get("item_key")}
+        decided_keys = {d["item_key"] for d in run_store.read_decisions(run_id)}
+        writer.writerows(_tnfd_csv_rows(rows, effective_decisions(run_store, run_id), queued, decided_keys))
     else:  # discovery
         writer = csv.writer(buf)
         writer.writerow(["company_id", "name", "homepage_used", "doc_type", "url", "local_path"])

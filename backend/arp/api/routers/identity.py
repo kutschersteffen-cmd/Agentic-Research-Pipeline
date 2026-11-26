@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from arp.api.auth import Principal, current_user
 from arp.api.deps import get_edgar_source, get_run_store, get_web_search_client, settings_dep
 from arp.api.run_scheduling import schedule_llm_run
+from arp.api.saved_universe import load_saved_universe
 from arp.config import Settings
 from arp.discovery.identity_pipeline import create_identity_run, enriched_universe, execute_identity_run
 from arp.discovery.site_finder import WebSearchClient
@@ -13,7 +14,6 @@ from arp.ingestion.edgar import EdgarDocumentSource
 from arp.llm.factory import batch_settings
 from arp.schemas.common import CompanyRef
 from arp.storage.run_store import RunStore
-from arp.universe import load_company_universe
 
 router = APIRouter(prefix="/api/identity", tags=["identity"])
 
@@ -41,7 +41,7 @@ async def start_identity_run(
     into the *existing* POST /api/discovery/runs as an ordinary universe.
     """
     settings = batch_settings(settings, req.batch)
-    companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
+    companies = req.companies or (load_saved_universe(req.universe_path, settings) if req.universe_path else None)
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
 

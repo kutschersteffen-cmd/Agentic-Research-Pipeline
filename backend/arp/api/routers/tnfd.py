@@ -14,6 +14,7 @@ from arp.api.review_endpoints import (
 )
 from arp.api.routers.decision import template_for_run
 from arp.api.run_scheduling import schedule_llm_run
+from arp.api.saved_universe import load_saved_universe
 from arp.config import Settings
 from arp.decision.templates import attach_to_run
 from arp.extraction.tnfd_pipeline import create_tnfd_extraction_run, execute_tnfd_extraction_run
@@ -22,7 +23,6 @@ from arp.llm.factory import batch_settings
 from arp.schemas.common import CompanyRef
 from arp.storage.decision_store import DecisionStore
 from arp.storage.run_store import RunStore
-from arp.universe import load_company_universe
 
 router = APIRouter(prefix="/api/tnfd", tags=["tnfd"])
 
@@ -46,7 +46,7 @@ async def start_tnfd_extraction_run(
     principal: Principal = Depends(current_user),
 ) -> dict:
     settings = batch_settings(settings, req.batch)
-    companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
+    companies = req.companies or (load_saved_universe(req.universe_path, settings) if req.universe_path else None)
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
     template = None

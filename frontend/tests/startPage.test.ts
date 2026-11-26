@@ -26,20 +26,15 @@ const media = (q: string) => {
   return out.join("\n");
 };
 
-test("sp_ac10_grid", () => {
+// expressive-ui-orb slice 2 supersedes sp_ac10_grid and sp_tablet_last_card_fills_its_row (the 3 + 2 grid):
+// five in a row, three at 1180px and below, two at 760px, one at 480px.
+test("eo_ac78_grid", () => {
   const g = bodies(css, ".hub-cards");
-  assert.match(g, /grid-template-columns:\s*repeat\(6, minmax\(0, 1fr\)\)/);
-  assert.match(g, /gap:\s*20px/);
-  assert.match(bodies(css, ".hub-card"), /grid-column:\s*span 2/);
-  assert.match(bodies(css, ".hub-card:nth-child(n+4)"), /grid-column:\s*span 3/);
-  assert.match(media("max-width: 1100px"), /\.hub-card, \.hub-card:nth-child\(n\+4\) \{ grid-column: span 3; \}/);
-  assert.match(media("max-width: 760px"), /\.hub-cards \{ grid-template-columns: minmax\(0, 1fr\); \}[\s\S]*\.hub-card, \.hub-card:nth-child\(n\+4\) \{ grid-column: auto; \}/);
-});
-test("sp_tablet_last_card_fills_its_row", () => {
-  // 761–1100px: five cards at half width leave an empty cell beside Data Hub, so the fifth spans the row.
-  assert.match(media("max-width: 1100px"), /\.hub-card:nth-child\(5\) \{ grid-column: 1 \/ -1; \}/);
-  // On a phone the single column wins again.
-  assert.match(media("max-width: 760px"), /\.hub-card, \.hub-card:nth-child\(n\+4\) \{ grid-column: auto; \}/);
+  assert.match(g, /grid-template-columns:\s*repeat\(5, minmax\(0, 1fr\)\)/);
+  assert.match(media("max-width: 1180px"), /\.hub-cards \{ grid-template-columns: repeat\(3, minmax\(0, 1fr\)\); \}/);
+  assert.match(media("max-width: 760px"), /\.hub-cards \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); \}/);
+  assert.match(media("max-width: 480px"), /\.hub-cards \{ grid-template-columns: minmax\(0, 1fr\); \}/);
+  assert.doesNotMatch(css, /\.hub-card:nth-child/);
 });
 test("sp_ac12c_status_word_colours", () => {
   const want: Record<string, string> = { wait: "var(--hi-ink)", now: "var(--run)", failed: "var(--low)", done: "var(--muted)", idle: "var(--muted)", unknown: "var(--muted)" };
@@ -62,11 +57,13 @@ test("sp_ac12e_running_is_never_amber", () => {
   assert.match(bodies(css, ".hub-mark-now"), /var\(--run\)/);
   assert.match(bodies(css, ".ws-accent-now"), /var\(--run\)/);
 });
-test("sp_ac13c_drawing_look", () => {
+// expressive-ui-orb slice 2 supersedes sp_ac13c_drawing_look (the flat panel fill): faces take dark gradients.
+test("eo_drawing_look", () => {
   assert.match(bodies(css, ".ws-drawing path"), /stroke-width:\s*1px/);
-  assert.match(bodies(css, ".ws-face"), /fill:\s*var\(--panel\)/);
-  const stroke = bodies(css, ".ws-drawing path").match(/stroke:\s*color-mix\(in srgb, var\(--text\) (\d+)%, transparent\)/);
-  assert.ok(stroke && +stroke[1] >= 20 && +stroke[1] <= 30, "stroke mix 20–30%");
+  const stroke = bodies(css, ".ws-drawing .ws-face").match(/stroke:\s*color-mix\(in srgb, var\(--text\) (\d+)%, transparent\)/);
+  assert.ok(stroke && +stroke[1] >= 20 && +stroke[1] <= 35, "face stroke mix 20–35%");
+  for (const g of ["face", "top", "now", "wait"]) for (const i of [0, 1]) assert.match(bodies(css, `.ws-g-${g}-${i}`), /stop-color:/, `${g}-${i}`);
+  assert.doesNotMatch(css, /\.ws-face \{ fill: var\(--panel\)/);
 });
 
 // UI polish 1, F7: the failed tile uses the failed colour, never amber.

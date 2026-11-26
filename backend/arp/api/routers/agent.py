@@ -1,5 +1,5 @@
 """The Agent screen's routes: the inbox, what waits on a person in the agent lanes (spec agent-panel-code-mode,
-Phase 3), and ask threads (Phase 7)."""
+Phase 3), explorations and the plans drafted from them (Phases 4 and 6), and ask threads (Phase 7)."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -10,9 +10,10 @@ from pydantic import BaseModel, Field, StringConstraints
 from starlette.concurrency import run_in_threadpool
 
 from arp import ask
-from arp.agent.explorations import ExplorationStore, explore
+from arp.agent.explorations import ExplorationStore, NotDone, explore, plan_context, write_miniapp
 from arp.api.auth import Principal, current_user
 from arp.api.deps import get_run_store, settings_dep
+from arp.api.routers import plans
 from arp.api.routers.ask import ERROR_DETAIL, AskDeps, answer, ask_deps
 from arp.api.routers.plans import plan_store
 from arp.config import Settings
@@ -20,6 +21,7 @@ from arp.db.runs import RunStore
 from arp.db.session import require_dsn
 from arp.errors import NotConfigured
 from arp.orchestration.ask_store import AskStore
+from arp.orchestration.plan_planner import PlanRejected, draft_plan
 from arp.orchestration.plan_store import PlanStore
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
@@ -42,15 +44,24 @@ def _step_href(call: dict, run_store: RunStore) -> str:
     return f"#/review/{manifest.run_type}/{call['run_id']}"
 
 
+def exploration_store(settings: Settings = Depends(settings_dep)) -> ExplorationStore:
+    return ExplorationStore(require_dsn(settings))
+
+
 @router.get("/inbox", response_model=list[InboxRow])
-def inbox(store: PlanStore = Depends(plan_store), run_store: RunStore = Depends(get_run_store)) -> list[InboxRow]:
-    """Draft plans and calls awaiting review, oldest first (a plan by its `created_at`, a call by its `started_at`)."""
+def inbox(store: PlanStore = Depends(plan_store), run_store: RunStore = Depends(get_run_store),
+          explorations: ExplorationStore = Depends(exploration_store)) -> list[InboxRow]:
+    """Draft plans, calls awaiting review and `done` explorations not yet accepted, oldest first (a plan or an exploration
+    by its `created_at`, a call by its `started_at`)."""
     rows = [(p["created_at"], InboxRow(kind="plan_approval", plan_id=p["id"], seq=None, exploration_id=None,
                                        title=p["brief"][:60], href=f"#/agent/{p['id']}"))
             for p in store.list() if p["status"] == "draft"]
     rows += [(c["started_at"], InboxRow(kind="step_review", plan_id=c["plan_id"], seq=c["seq"], exploration_id=None,
                                         title=f"{c['kind']} step {c['seq']}", href=_step_href(c, run_store)))
              for c in store.calls_awaiting_review()]
+    rows += [(e["created_at"], InboxRow(kind="exploration", plan_id=None, seq=None, exploration_id=e["id"],
+                                        title=e["question"][:60], href=f"#/agent/exploration/{e['id']}"))
+             for e in explorations.list() if e["status"] == "done" and e["accepted_at"] is None]
     return [row for _, row in sorted(rows, key=lambda r: r[0])]
 
 
@@ -132,6 +143,12 @@ def list_ask_threads(asks: AskStore = Depends(ask_store)) -> list[dict]:
 
 class ExplorationRequest(BaseModel):
     question: str = Field(min_length=1)
+    source_ask_id: str | None = None  # the ask whose `Explore` sent this question
+
+
+class SourceAsk(BaseModel):
+    question: str
+    thread_id: str
 
 
 class ToolCall(BaseModel):
@@ -154,20 +171,97 @@ class Exploration(BaseModel):
     accepted_by: str | None
     accepted_at: datetime | None
     label: Literal["exploratory", "accepted"]
-
-
-def exploration_store(settings: Settings = Depends(settings_dep)) -> ExplorationStore:
-    return ExplorationStore(require_dsn(settings))
+    source_ask_id: str | None
+    source_ask: SourceAsk | None
+    miniapp_html: str | None
+    miniapp_asks: list[str] | None
 
 
 @router.post("/explorations", response_model=Exploration)
 async def create_exploration(req: ExplorationRequest, store: ExplorationStore = Depends(exploration_store),
                              settings: Settings = Depends(settings_dep),
                              principal: Principal = Depends(current_user)) -> dict:
-    """Runs the question's code in the sandbox; answers 200 with the stored exploration whether it ran or failed."""
+    """Runs the question's code in the sandbox; answers 200 with the stored exploration whether it ran or failed.
+    A `source_ask_id` that names no ask answers 404 and runs nothing."""
+    if req.source_ask_id is not None and not await run_in_threadpool(AskStore(store.dsn).exists, req.source_ask_id):
+        raise HTTPException(404, "ask not found")
     try:
-        return await explore(store, settings, req.question, principal)
+        return await explore(store, settings, req.question, principal, source_ask_id=req.source_ask_id)
     except NotConfigured:
         raise
     except RuntimeError as exc:
         raise HTTPException(502, f"no code was written for this question: {exc}") from exc
+
+
+@router.get("/explorations", response_model=list[Exploration])
+def list_explorations(store: ExplorationStore = Depends(exploration_store)) -> list[dict]:
+    """Every exploration, newest first."""
+    return store.list()
+
+
+@router.get("/explorations/{exploration_id}", response_model=Exploration)
+def get_exploration(exploration_id: str, store: ExplorationStore = Depends(exploration_store)) -> dict:
+    found = store.get(exploration_id)
+    if found is None:
+        raise HTTPException(404, "exploration not found")
+    return found
+
+
+@router.post("/explorations/{exploration_id}/accept", response_model=Exploration)
+def accept_exploration(exploration_id: str, store: ExplorationStore = Depends(exploration_store),
+                       principal: Principal = Depends(current_user)) -> dict:
+    """A person accepts the exploration's result; its label becomes `accepted`. Only a `done` exploration has a result."""
+    current = store.get(exploration_id)
+    if current is None:
+        raise HTTPException(404, "exploration not found")
+    if current["status"] != "done":
+        raise HTTPException(409, "only a done exploration can be accepted")
+    found = store.accept(exploration_id, principal.user_id)
+    if found is None:
+        raise HTTPException(404, "exploration not found")
+    return found
+
+
+@router.post("/explorations/{exploration_id}/miniapp", response_model=Exploration)
+async def create_miniapp(exploration_id: str, store: ExplorationStore = Depends(exploration_store),
+                         settings: Settings = Depends(settings_dep)) -> dict:
+    """"Show as mini-app" (and "Regenerate mini-app"): one model call writes a script-free page and follow-up questions
+    for the done exploration's result, cleaned and stored on it."""
+    try:
+        found = await write_miniapp(store, settings, exploration_id)
+    except NotDone:
+        raise HTTPException(409, "only a done exploration can be shown as a mini-app") from None
+    except NotConfigured:
+        raise
+    except RuntimeError as exc:
+        raise HTTPException(500, str(exc)) from exc
+    if found is None:
+        raise HTTPException(404, "exploration not found")
+    return found
+
+
+class ExplorationPlanRequest(BaseModel):
+    brief: str | None = None  # missing, null or blank: the exploration's question
+
+
+@router.post("/explorations/{exploration_id}/plan")
+async def plan_from_exploration(exploration_id: str, req: ExplorationPlanRequest | None = None,
+                                store: ExplorationStore = Depends(exploration_store),
+                                plan_store_: PlanStore = Depends(plan_store)) -> dict:
+    """"Turn into a plan…" (D9): the planner drafts a plan from an accepted exploration. The plan stays a draft, so
+    nothing runs until a person approves it. Answers the plan as `GET /api/plans/{id}` does."""
+    from arp.api.deps import get_llm_client
+
+    found = await run_in_threadpool(store.get, exploration_id)
+    if found is None:
+        raise HTTPException(404, "exploration not found")
+    if found["status"] != "done" or found["accepted_at"] is None:
+        raise HTTPException(409, "only an accepted exploration can become a plan")
+    brief = req.brief if req and req.brief and req.brief.strip() else found["question"]
+    context = await run_in_threadpool(plans._context) + "\n\n" + plan_context(found)
+    try:
+        plan_id = await draft_plan(brief, get_llm_client(), plan_store_, context, check=plans._check_sources,
+                                   source_exploration_id=found["id"])
+    except PlanRejected as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return await run_in_threadpool(plans.get_plan, plan_id, plan_store_)

@@ -66,7 +66,7 @@ def _contrast(page, fg, bg):
     return (b + 0.05) / (a + 0.05)
 
 
-@pytest.mark.parametrize("scheme", ["dark", "light"])
+@pytest.mark.parametrize("scheme", ["dark"])  # the light case went with the light theme (expressive-ui-orb)
 def test_ac2_intro_text2(page, scheme):
     _open(page, "/#/stewardiq", scheme=scheme)
     c = _style(page.locator(INTRO), "color")
@@ -123,10 +123,13 @@ def test_ac5_heading_weights(page):
     _open(page, "/#/home")
     for el in (page.locator(".hub-start .hub-hero h1"), page.locator(".hub-card-name").first):
         assert float(_style(el, "fontSize")[:-2]) >= 20
-        assert _style(el, "fontWeight") == "500"
+    # expressive-ui-orb supersedes the greeting's font (start-page-simplified AC-1e): Geist Pixel Square, weight 400.
+    assert _style(page.locator(".hub-start .hub-hero h1"), "fontWeight") == "400"
+    assert _style(page.locator(".hub-card-name").first, "fontWeight") == "500"
+    # expressive-ui-orb slice 3: the workspace title is Geist Pixel Square at weight 400 too.
     _open(page, "/#/stewardiq")
     h1 = page.locator(".page > h1")
-    assert float(_style(h1, "fontSize")[:-2]) >= 20 and _style(h1, "fontWeight") == "500"
+    assert float(_style(h1, "fontSize")[:-2]) >= 20 and _style(h1, "fontWeight") == "400"
 
 
 def test_ac5b_small_h2_stays_600(page):
@@ -140,7 +143,7 @@ def test_ac5b_small_h2_stays_600(page):
 
 def test_ac6_dark_hairline(page):
     _open(page, "/#/argus")
-    assert _style(page.locator(".argus-waiting"), "borderTopColor") == "rgba(232, 235, 240, 0.12)"
+    assert _style(page.locator(".argus-waiting"), "borderTopColor") == "rgba(255, 255, 255, 0.1)"  # expressive-ui-orb hairline
     page.keyboard.press("Control+k")
     field = page.locator(".palette-input")
     field.wait_for()
@@ -149,17 +152,12 @@ def test_ac6_dark_hairline(page):
     assert c == _probe(page, "--field-border") and _rgb(page, c)[3] == 1
 
 
-def test_ac6b_light_hairline(page):
-    _open(page, "/#/argus", scheme="light")
-    assert _style(page.locator(".argus-waiting"), "borderTopColor") == "rgb(216, 222, 231)"
-
-
 def test_ac7b_button_duration(page):
     _open(page, "/#/stewardiq")
     assert "0.1s" in _style(page.locator(".start-topbar button").first, "transitionDuration")
 
 
-@pytest.mark.parametrize("scheme", ["dark", "light"])
+@pytest.mark.parametrize("scheme", ["dark"])  # the light case went with the light theme (expressive-ui-orb)
 def test_ac9_bar_translucent(page, scheme):
     _open(page, "/#/stewardiq", scheme=scheme)
     bar = page.locator(".start-topbar")
@@ -178,7 +176,7 @@ def test_ac9b_phone_bar_opaque(page):
     assert _rgb(page, _style(bar, "backgroundColor"))[3] == 1
 
 
-@pytest.mark.parametrize("scheme", ["dark", "light"])
+@pytest.mark.parametrize("scheme", ["dark"])  # the light case went with the light theme (expressive-ui-orb)
 def test_ac9c_badge_solid(page, scheme):
     page.route("**/api/waiting", lambda r: r.fulfill(json={"review": 100, "decisions": 20, "ballots": 3, "total": 123}))
     _open(page, "/#/stewardiq", scheme=scheme)

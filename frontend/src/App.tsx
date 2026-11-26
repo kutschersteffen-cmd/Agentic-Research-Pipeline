@@ -7,16 +7,18 @@ import { ArgusNew, ArgusStart, openNewFlow } from "./pages/ArgusStart";
 import { WORKSPACES, workspaceOfProcess, type WorkspaceId } from "./lib/processes";
 import { STAGE_TABS } from "./pages/steward/common";
 import { SUB_TABS as RISK_TABS } from "./lib/subTabs";
-import { CommandPalette, type PaletteItem } from "./components/CommandPalette";
-import { ctrlJTarget, type Selection } from "./lib/agent";
+import { CommandPalette } from "./components/CommandPalette";
+import { runItem, type PaletteItem } from "./lib/commandPalette";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { ctrlJTarget, rfpId, type Selection } from "./lib/agent";
 import { useMe } from "./lib/reviewer";
 import { AppTopbar } from "./components/AppTopbar";
 import { WorkspaceRow } from "./components/WorkspaceRow";
 import type { ReviewableRunKind, RunManifest, WaitingCounts } from "./types";
-import { REVIEWABLE_RUN_TYPES, runTypeLabel } from "./lib/runs";
+import { REVIEWABLE_RUN_TYPES } from "./lib/runs";
 import { api } from "./api/client";
 import { listAllRuns } from "./lib/poll";
-import { HUBS, entryTab, redirectHash } from "./lib/nav";
+import { HUBS, entryTab, redirectHash, safeDecode } from "./lib/nav";
 import { Landing } from "./pages/Landing";
 
 // Pages load on demand so the first screen does not ship every page and its editors.
@@ -108,20 +110,14 @@ const PALETTE_ITEMS: PaletteItem[] = [
   ...TABS.map((t) => ({ label: t.label, hint: hubOf(t.id)?.label.replace(t.label, "") || undefined, href: `#/${t.id}` })),
   ...STAGE_TABS.map((t) => ({ label: t.label, hint: "Steward Workflow", href: `#/stewardship/${t.id}` })),
   ...RISK_TABS.map((t) => ({ label: t.label, hint: "Risk Monitoring", href: `#/portfolio-monitoring/${t.id}` })),
+  { label: "Refine a document", hint: "Agent", href: "#/agent/refine" },
 ];
-
-/** A run in the palette opens where its decisions are made, else in Run History. */
-const runItem = (r: RunManifest): PaletteItem => ({
-  label: `${runTypeLabel(r.run_type)} ${r.run_id}`,
-  hint: "Run",
-  href: r.run_type === "proxy_voting" ? `#/voting/${r.run_id}` : REVIEWABLE_RUN_TYPES.has(r.run_type) ? `#/review/${r.run_type}/${r.run_id}` : "#/history",
-});
 
 /** The URL is the source of truth for where you are: `#/<tab>/<param>...`,
  * so refresh, Back and a pasted link all land on the same view -- e.g.
  * `#/voting/<run id>` or `#/review/extraction/<run id>`. */
 function parseHash(hash = window.location.hash): { tab: TabId; params: string[] } {
-  const [tab, ...params] = hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
+  const [tab, ...params] = hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(safeDecode);
   // Old links: the Theme Machine and Design Studio boxes merged into R&D Lab;
   // the Processes screen's processes now live on their workspace pages.
   if (tab === "themeMachine" || tab === "designStudio") return { tab: "rdLab", params: [] };
@@ -137,10 +133,19 @@ function readRoute() {
   return parseHash();
 }
 
-/** `#/agent/<plan_id>` selects a plan, `#/agent/ask/<thread_id>` an ask thread. */
+/** `#/agent/<plan_id>` selects a plan, `#/agent/ask/<thread_id>` an ask thread, `#/agent/exploration/<id>` an
+ * exploration, `#/agent/refine/<kind>/<doc_id>` a Refine thread and `#/agent/refine` the Refine picker. */
 function agentSelection(params: string[]): Selection {
-  if (params[0] === "ask") return params[1] ? { kind: "ask", id: params[1] } : null;
+  if (params[0] === "refine") return { kind: "refine", id: params[1] && params[2] ? `${params[1]}/${params[2]}` : "" };
+  if (params[0] === "ask" || params[0] === "exploration") return params[1] ? { kind: params[0], id: params[1] } : null;
   return params[0] ? { kind: "plan", id: params[0] } : null;
+}
+
+/** The address params of an Agent selection (the inverse of agentSelection). */
+function agentParams(s: NonNullable<Selection>): string[] {
+  if (s.kind === "plan") return [s.id];
+  if (s.kind === "refine") return s.id ? ["refine", s.id.slice(0, s.id.indexOf("/")), s.id.slice(s.id.indexOf("/") + 1)] : ["refine"];
+  return [s.kind, s.id];
 }
 
 function navigate(tab: TabId, ...params: string[]) {
@@ -163,6 +168,7 @@ function App() {
       if (window.location.hash !== shownHash.current && !canLeave()) {
         // hashchange cannot be cancelled; replaceState restores the URL without firing it again.
         history.replaceState(null, "", shownHash.current || "#");
+        setAgentAsk(null); // a refused move to the Agent screen must not leave its question queued
         return;
       }
       shownHash.current = window.location.hash;
@@ -213,6 +219,8 @@ function App() {
   // Ask ARP lives on the Agent screen: Ctrl/⌘J focuses its composer, the palette's ask sends a new ask thread there.
   const [agentFocus, setAgentFocus] = useState(0);
   const [agentAsk, setAgentAsk] = useState<{ id: number; question: string } | null>(null);
+  // The palette's ask and a workspace's Ask ARP box send a new ask thread on the Agent screen.
+  const askAgent = (question: string) => { setAgentAsk({ id: Date.now(), question }); navigate("agent"); };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -273,7 +281,7 @@ function App() {
         <CommandPalette
           items={[...PALETTE_ITEMS, ...recentRuns.map(runItem)]}
           onClose={() => setPaletteOpen(false)}
-          onAsk={canAsk ? (question) => { setAgentAsk({ id: Date.now(), question }); navigate("agent"); } : undefined}
+          onAsk={canAsk ? askAgent : undefined}
         />
       )}
       <main className="app-main" id="main" tabIndex={-1}>
@@ -287,11 +295,12 @@ function App() {
             ))}
           </nav>
         )}
+        <ErrorBoundary>
         <Suspense fallback={<p className="muted" role="status">Loading…</p>}>
         {active === "home" && <StartPage />}
         {active === "argus" && route.params[0] === "new" && <ArgusNew preset={route.params[1] ?? null} />}
         {active === "argus" && route.params[0] !== "new" && (route.params[0] ? <ArgusFlow key={route.params[0]} flowId={route.params[0]} step={stepFromUrl(route.params[1])} /> : <ArgusStart />)}
-        {isWorkspace(active) && active !== "argus" && !(active === "stewardiq" && route.params[0] === "cockpit") && <WorkspaceOverview key={active} id={active} />}
+        {isWorkspace(active) && active !== "argus" && !(active === "stewardiq" && route.params[0] === "cockpit") && <WorkspaceOverview key={active} id={active} onAsk={canAsk ? askAgent : undefined} />}
         {active === "stewardiq" && route.params[0] === "cockpit" && <StewardCockpit key={route.params[1] ?? "today"} asOf={route.params[1]} />}
         {active === "search" && <Search />}
         {active === "securityMaster" && <SecurityMaster />}
@@ -300,7 +309,7 @@ function App() {
         {active === "smartSearch" && <SmartSearch />}
         {active === "outputs" && <Outputs />}
         {active === "arcade" && <Arcade selected={route.params[0] ?? null} />}
-        {active === "theme" && <ThemeBuilder key={route.params[0]} initialRunId={route.params[0] ?? null} onSendToArgus={(path) => sendToArgus("argus", path)} pendingTaxonomyId={pendingTaxonomyId} />}
+        {active === "theme" && <ThemeBuilder key={route.params[0]} initialRunId={route.params[0] ?? null} onSendToArgus={(path) => sendToArgus("argus", path)} pendingTaxonomyId={pendingTaxonomyId} onPendingTaxonomyTaken={() => setPendingTaxonomyId(null)} />}
         {active === "taxonomy" && route.params[0] === "authority" && <AuthorityTaxonomyRun key={route.params[1] ?? "new"} runId={route.params[1]} />}
         {active === "taxonomy" && route.params[0] !== "authority" && <TaxonomyLibrary onUseInTheme={sendToTheme} />}
         {active === "emergingThemes" && <EmergingThemesDetector onNavigate={go} />}
@@ -314,7 +323,7 @@ function App() {
         {active === "agent" && (
           <Agent selected={agentSelection(route.params)} canAsk={canAsk} focusToken={agentFocus} pendingAsk={agentAsk}
             onPendingAskTaken={() => setAgentAsk(null)}
-            onSelect={(s) => (s ? navigate("agent", ...(s.kind === "ask" ? ["ask", s.id] : [s.id])) : navigate("agent"))} />
+            onSelect={(s) => (s ? navigate("agent", ...agentParams(s)) : navigate("agent"))} />
         )}
         {active === "stewardship" && <StewardWorkflow initialTab={route.params[0]} />}
         {active === "engagement" && <EngagementDashboard />}
@@ -326,11 +335,12 @@ function App() {
         {active === "decision" && <DecisionStudio key={route.params.join("/")} initialSource={route.params[0]} initialRunId={route.params[1]} />}
         {active === "index" && <IndexBuilder />}
         {active === "argusWalkthrough" && <ArgusWalkthrough key={route.params.join("/")} params={route.params} />}
-        {active === "rfp" && <RfpAnswers projectId={route.params[0] ? Number(route.params[0]) : null} onOpen={(id) => (id === null ? navigate("rfp") : navigate("rfp", String(id)))} />}
+        {active === "rfp" && <RfpAnswers projectId={rfpId(route.params[0])} onOpen={(id) => (id === null ? navigate("rfp") : navigate("rfp", String(id)))} />}
         {active === "xbrl" && <XbrlFacts selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("xbrl", id)} />}
         {active === "library" && <DataLibrary />}
         {active === "companies" && <Company companyRef={route.params[0]} />}
         </Suspense>
+        </ErrorBoundary>
       </main>
     </div>
   );

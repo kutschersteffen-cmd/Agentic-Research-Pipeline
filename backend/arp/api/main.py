@@ -26,6 +26,7 @@ from arp.api.deps import (
     get_taxonomy_researcher_scheduler,
     settings_dep,
 )
+from arp.api.request_limit import RequestSizeLimit
 from arp.api.routers import (
     agent,
     agent_board,
@@ -39,6 +40,7 @@ from arp.api.routers import (
     climate,
     companies,
     decision,
+    desk,
     discovery,
     documents,
     dossier_position,
@@ -93,6 +95,7 @@ from arp.api.routers import (
 from arp.db.session import require_cutover, require_postgres
 from arp.errors import ClientInputError, NotConfigured
 from arp.refine.turns import reap_stale_turns
+from arp.research_desk.turn import reap_stale_desk_turns
 from arp.schemas.thematic import OLD_FORMAT_MESSAGE
 from arp.stewardship.universe import wait_for_fill
 from arp.transition_alignment.benchmarks import check_benchmarks
@@ -119,12 +122,18 @@ def _fill_observations(settings) -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = settings_dep()
+    if settings.auth_mode == "dev" and "*" in settings.allowed_origins:
+        raise NotConfigured(
+            'ARP_AUTH_MODE=dev with "*" in ARP_ALLOWED_ORIGINS lets any website act as the dev approver. '
+            "List the real origins in ARP_ALLOWED_ORIGINS, or set ARP_AUTH_MODE=local."
+        )
     check_rule_book()  # an invalid rule book stops startup, naming its first error
     check_benchmarks()  # so does an invalid benchmarks file
     require_postgres(settings)  # Postgres is the system of record: no DSN or no answer, no app
     require_cutover(settings)  # nor on an un-migrated or un-imported database
     # shortcut: fails every running turn at startup, safe only with one API worker; reap by age or worker id before running several
     reap_stale_turns()  # a turn left `running` by the last process can never finish: fail it, unlocking its document
+    reap_stale_desk_turns()  # the same for Research Desk turns
     settings.ensure_dirs()
     if settings.standins_dir is not None:
         logger.warning("Test stand-ins are ON: web search, fetch and model answers come from %s", settings.standins_dir)
@@ -169,6 +178,9 @@ app = FastAPI(title="Agentic Research Pipeline", version="0.1.0", lifespan=lifes
 # Host check for every route: a host check, not auth. Stops
 # DNS rebinding from turning a foreign site into a loopback "dev" caller.
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings_dep().trusted_hosts)
+
+# Whole-request size limit: inside CORS (the browser can read the 413), before sign-in and any body read.
+app.add_middleware(RequestSizeLimit)
 
 app.add_middleware(
     CORSMiddleware,
@@ -217,6 +229,7 @@ app.include_router(transition_barrier.router, dependencies=[Depends(authorize)])
 app.include_router(transition_alignment.router, dependencies=[Depends(authorize)])
 app.include_router(rfp.router, dependencies=[Depends(authorize)])
 app.include_router(refine.router, dependencies=[Depends(current_user)])  # own role check: a viewer's 403 names the page
+app.include_router(desk.router)  # every endpoint requires an analyst
 app.include_router(portfolio.router, dependencies=[Depends(authorize)])
 app.include_router(climate.router, dependencies=[Depends(authorize)])
 app.include_router(decision.router, dependencies=[Depends(authorize)])

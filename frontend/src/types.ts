@@ -29,6 +29,8 @@ export type InboxRow = Served<S["InboxRow"]>;
 export type AgentAsk = Served<S["AgentAsk"]>;
 /** One ask thread in the Agent screen's list (`GET /api/agent/ask-threads`). */
 export type AskThread = Served<S["AskThread"]>;
+/** One exploration (`GET /api/agent/explorations`, `POST /api/agent/explorations`). */
+export type Exploration = Served<S["Exploration"]>;
 export type DocumentPassage = DocumentPassages["passages"][number];
 export type ArgusFlow = Served<S["ArgusFlowView"]>;
 export type ArgusDraft = Served<S["ArgusFlow"]>; // as GET /api/argus/flows lists it, without rows
@@ -75,6 +77,11 @@ export type RfpDocument = Served<S["RfpDocumentOut"]>;
 export type RfpProjectSummary = Served<S["RfpProjectSummary"]>;
 export type RfpProject = Served<S["RfpProjectOut"]>;
 export type RfpQuestion = Served<S["RfpQuestionOut"]>;
+export type RefineTurn = Served<S["RefineTurn"]>;
+export type RefineTurnOut = Served<S["RefineTurnOut"]>;
+export type RefineThread = Served<S["RefineThread"]>;
+export type RefineDocument = Served<S["RefineDocument"]>;
+export type RefineHistoryItem = Served<S["RefineHistoryItem"]>;
 export type AskResponse = Served<S["AskResponse"]>;
 
 // The run types the Review Queue endpoints exist for -- a subset of every
@@ -1363,6 +1370,8 @@ export interface ReportManifest {
   output_tokens: number;
   model?: string | null;
   output_files: string[];
+  has_deck?: boolean;
+  deck_edited_since_render?: boolean;
 }
 
 export type StorylineSlide = Served<S["StorylineSlide"]>;
@@ -1407,6 +1416,7 @@ export interface ProvenanceInfo {
 }
 
 export type StrategySpec = Served<S["StrategySpec"]>;
+export type ReplicationDatasetUpload = Served<S["DatasetUploadResponse"]>;
 
 export interface SpecReviewDecision {
   item_key: string;

@@ -100,7 +100,7 @@ async def answer(req: ask.AskRequest, d: AskDeps) -> ask.AskResponse:
         tool = routing.tool
         out = {"tool": tool, "question": req.question, "standalone_question": routing.standalone_question}
         if tool == "portfolio":
-            securities, companies = portfolio_directories(d.store)
+            securities, companies = await run_in_threadpool(portfolio_directories, d.store)
             qa, _usage = await qa_agent.answer_question(routing.standalone_question, d.llm, d.store, securities, companies)
             out |= {"portfolio": qa, "answer_text": qa.answer_text if qa.resolvable else qa.clarification_needed}
         elif tool == "smart_search":

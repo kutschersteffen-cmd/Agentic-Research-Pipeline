@@ -16,7 +16,8 @@ MAX_SVG_BYTES = 2 * 2**20  # per SVG: a 5 000-point scatter fits; a board of 50 
 
 
 def themed_svgs(source: dict) -> dict[str, str]:
-    """The source with `config` replaced by the house theme for each colour scheme, as SVG."""
+    """The source with `config` replaced by the house theme for each colour scheme, as SVG. The chart's own top-level
+    `title` is dropped: the Board shows the block's title above it."""
     from arp.reporting import vega
     from arp.reporting.house_style import load_tokens
     from arp.reporting.render_model import palette
@@ -28,10 +29,11 @@ def themed_svgs(source: dict) -> dict[str, str]:
         config["background"] = c["panel"]
         for part in ("axis", "legend"):
             config[part] = {**config.get(part, {}), "labelColor": c["ink"], "titleColor": c["ink"]}
-        config["axis"].update(domainColor=c["line"], tickColor=c["line"])
+        config["axis"].update(domainColor=c["line"], tickColor=c["line"], gridColor=c["line"])
         config["title"] = {**config.get("title", {}), "color": c["ink"]}
         config["mark"] = {**config.get("mark", {}), "color": c["highlight"]}
-        out[mode] = vega.to_svg({**source, "config": config}, tokens)
+        untitled = {k: v for k, v in source.items() if k != "title"}
+        out[mode] = vega.to_svg({**untitled, "config": config}, tokens)
         if len(out[mode]) > MAX_SVG_BYTES:
             raise ValueError("the drawn chart exceeds 2 MB")
     return out

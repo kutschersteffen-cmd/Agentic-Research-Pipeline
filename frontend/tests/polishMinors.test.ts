@@ -29,7 +29,3 @@ test("minor_argus_cards_no_double_inset", () => {
   assert.doesNotMatch(css, /\.argus-results \.data-table\.stack-on-phone td, \.argus-progress \.data-table\.stack-on-phone td \{ padding-inline/);
 });
 
-test("minor_tablet_header_skips_argus_start", () => {
-  assert.ok(css.includes(".page.hub:not(.hub-start, .argus-start) { position: relative; }"));
-  assert.ok(!css.includes(".page.hub:not(.hub-start) { position: relative; }"));
-});

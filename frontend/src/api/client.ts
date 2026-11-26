@@ -1,6 +1,7 @@
 import { plainDetail } from "../lib/setupErrors";
 import { clearToken, getToken } from "../lib/auth";
 import type { Plan } from "../lib/plans";
+import type { Board, BoardBlock } from "../lib/board";
 import { filenameFromDisposition, inlineSafe } from "../lib/files";
 import { profileEmbedParams } from "../lib/biEmbed";
 import { cockpitPath } from "../lib/cockpit";
@@ -62,6 +63,10 @@ import type {
   RfpLibraryEntry,
   RfpProject,
   RfpProjectSummary,
+  RefineDocument,
+  RefineThread,
+  RefineTurn,
+  RefineTurnOut,
   SignalComparison,
   SignalExperimentDetail,
   SignalExperimentSummary,
@@ -152,12 +157,12 @@ import type {
   StandardsSaved,
   StandardsView,
 } from "../types";
-import type { AgentAsk, AskThread, InboxRow, ItemContext, ItemDecisionBody, ItemSource, ItemState, PageBox, ReviewItem, SimilarDecision, WaitingCounts, Walkthrough } from "../types";
+import type { AgentAsk, AskThread, Exploration, InboxRow, ItemContext, ItemDecisionBody, ItemSource, ItemState, PageBox, ReviewItem, SimilarDecision, WaitingCounts, Walkthrough } from "../types";
 import type { DecisionInput, DocType, DocumentPassages, PublishedDecision, Readiness } from "../types";
 import { formatValidationErrors } from "../lib/projects";
 import type { BIChartPlan, BIDesignResult, BIEmbedToken, DashboardItem, ExportedDashboard, OpenedDashboard, OpenResult, ProjectSummary } from "../types";
 import type { Finding, QuantitativeDataset, ReportManifest, ReportPlan, ReportRequest, Storyline, TemplateStyleProfile } from "../types";
-import type { PaperCandidate, ReplicationRunDetail, RegimeStratifiedReport, SanityCheckAssessment, SpecReviewState, StrategySpec } from "../types";
+import type { PaperCandidate, ReplicationDatasetUpload, ReplicationRunDetail, RegimeStratifiedReport, SanityCheckAssessment, SpecReviewState, StrategySpec } from "../types";
 import type {
   BarrierCriterionDetail,
   BarrierMatrix,
@@ -276,6 +281,10 @@ const rfpQuestion = (projectId: number, qid: number, action = "") => `/api/rfp/p
 const research = (dossierId: string, action = "") => `/api/dossiers/${encodeURIComponent(dossierId)}/research${action}`;
 const step5 = (dossierId: string, path: string) => `/api/dossiers/${encodeURIComponent(dossierId)}/${path}`;
 const jsonBody = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
+export type BoardKind = "plan" | "exploration";
+const board = (id: string, rest = "", kind: BoardKind = "plan") => `/api/agent/boards/${kind}/${encodeURIComponent(id)}${rest}`;
+const boardBlock = (id: string, blockId: string, rest = "", kind: BoardKind = "plan") =>
+  board(id, `/blocks/${encodeURIComponent(blockId)}${rest}`, kind);
 
 export const api = {
   listPlans: () => request<Plan[]>("/api/plans"),
@@ -291,6 +300,22 @@ export const api = {
   replanPlan: (id: string) => request<Plan>(`/api/plans/${encodeURIComponent(id)}/replan`, { method: "POST" }),
   cancelPlan: (id: string) => request<Plan>(`/api/plans/${encodeURIComponent(id)}/cancel`, { method: "POST" }),
   getAgentInbox: () => request<InboxRow[]>("/api/agent/inbox"),
+  listExplorations: () => request<Exploration[]>("/api/agent/explorations"),
+  getExploration: (id: string) => request<Exploration>(`/api/agent/explorations/${encodeURIComponent(id)}`),
+  acceptExploration: (id: string) => request<Exploration>(`/api/agent/explorations/${encodeURIComponent(id)}/accept`, { method: "POST" }),
+  createMiniapp: (id: string) => request<Exploration>(`/api/agent/explorations/${encodeURIComponent(id)}/miniapp`, { method: "POST" }),
+  getBoard: (planId: string, kind: BoardKind = "plan") => request<Board>(board(planId, "", kind)),
+  addBlock: (planId: string, body: { kind: string; title: string; source: unknown; origin?: string; unverified?: number[]; position?: number }, kind: BoardKind = "plan") =>
+    request<BoardBlock>(board(planId, "/blocks", kind), jsonBody("POST", body)),
+  patchBlock: (planId: string, blockId: string, body: { title?: string; source?: unknown; position?: number }, kind: BoardKind = "plan") =>
+    request<BoardBlock>(boardBlock(planId, blockId, "", kind), jsonBody("PATCH", body)),
+  undoBlock: (planId: string, blockId: string, kind: BoardKind = "plan") =>
+    request<BoardBlock>(boardBlock(planId, blockId, "/undo", kind), { method: "POST" }),
+  deleteBlock: async (planId: string, blockId: string, kind: BoardKind = "plan") => {
+    await authFetch(`${API_BASE}${boardBlock(planId, blockId, "", kind)}`, { method: "DELETE" }); // 204: no body to parse
+  },
+  drawBlock: (planId: string, prompt: string, blockId?: string, kind: BoardKind = "plan") =>
+    request<BoardBlock>(board(planId, "/draw", kind), jsonBody("POST", blockId ? { prompt, block_id: blockId } : { prompt })),
   listRfpLibrary: () => request<RfpLibraryEntry[]>("/api/rfp/library"),
   importRfpLibrary: (files: File[]) => {
     const form = new FormData();
@@ -325,6 +350,29 @@ export const api = {
   leaveRfpBlank: (id: number, qid: number) => request<RfpProject>(rfpQuestion(id, qid, "/leave-blank"), { method: "POST" }),
   approveRfp: (id: number, qid: number, confirmedFlags: string[]) =>
     request<RfpProject>(rfpQuestion(id, qid, "/approve"), jsonBody("POST", { confirmed_flags: confirmedFlags })),
+  // Refine threads on the Agent screen (spec refine-chat-design): `kind` is rfp (doc id = project id) or deck (report id).
+  listRefineThreads: () => request<RefineThread[]>("/api/refine/threads"),
+  listRefineDocuments: () => request<RefineDocument[]>("/api/refine/documents"),
+  listRefineTurns: (kind: string, docId: string) => request<RefineTurn[]>(`/api/refine/${kind}/${encodeURIComponent(docId)}/turns`),
+  getRefineTurn: (turnId: number) => request<RefineTurnOut>(`/api/refine/turns/${turnId}`),
+  getDeckHtml: async (reportId: string) => (await authFetch(`${API_BASE}/api/reports/${encodeURIComponent(reportId)}/deck/html`)).text(),
+  /** A Refine write (a turn or an undo): its status and parsed body, never a throw, so the screen can show the API's
+   * own `detail`; a request that never got an answer has status `network`. */
+  refineWrite: async (path: string, body?: unknown): Promise<{ status: number | "network"; body: unknown }> => {
+    const token = getToken();
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}${path}`, {
+        method: "POST",
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+    } catch {
+      return { status: "network", body: null };
+    }
+    if (res.status === 401) clearToken();
+    return { status: res.status, body: await res.json().catch(() => null) };
+  },
   rfpExportUrl: (id: number) => `${API_BASE}/api/rfp/projects/${id}/export`,
   listReviewItems: (runId?: string) =>
     request<{ items: ReviewItem[] }>(`/api/review/items${runId ? `?run_id=${encodeURIComponent(runId)}` : ""}`),
@@ -1208,11 +1256,12 @@ export const api = {
   approveSpecDraft: (specRunId: string) =>
     request<{ spec_run_id: string; spec: StrategySpec; approved: boolean }>(`/api/replication/specs/${encodeURIComponent(specRunId)}/approve`, {
       method: "POST",
+      body: JSON.stringify({}),
     }),
   uploadPriceDataset: (specRunId: string, file: File) => {
     const form = new FormData();
     form.append("file", file);
-    return request<{ ref: string }>(`/api/replication/specs/${encodeURIComponent(specRunId)}/datasets/prices`, {
+    return request<ReplicationDatasetUpload>(`/api/replication/specs/${encodeURIComponent(specRunId)}/datasets/prices`, {
       method: "POST",
       headers: {},
       body: form,
@@ -1221,7 +1270,7 @@ export const api = {
   uploadCharacteristicsDataset: (specRunId: string, name: string, file: File) => {
     const form = new FormData();
     form.append("file", file);
-    return request<{ ref: string }>(
+    return request<ReplicationDatasetUpload>(
       `/api/replication/specs/${encodeURIComponent(specRunId)}/datasets/characteristics/${encodeURIComponent(name)}`,
       { method: "POST", headers: {}, body: form }
     );

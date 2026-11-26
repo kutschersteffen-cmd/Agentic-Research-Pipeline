@@ -1,8 +1,9 @@
+import logging
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, IPvAnyNetwork, field_validator, model_validator
+from pydantic import AliasChoices, Field, IPvAnyNetwork, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -11,7 +12,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 class Settings(BaseSettings):
     """Central runtime configuration, loaded from environment / .env."""
 
-    model_config = SettingsConfigDict(env_prefix="ARP_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_prefix="ARP_", env_file=".env", extra="ignore", populate_by_name=True)
 
     # LLM
     anthropic_api_key: str | None = Field(default=None)
@@ -109,7 +110,10 @@ class Settings(BaseSettings):
     snapshot_pull_dir: Path = REPO_ROOT / "data" / "snapshots"  # where `arp snapshots pull` writes
     holdings_api_url: str | None = None  # base URL of the ARP instance snapshots are pulled from
     holdings_api_token: str | None = None
-    esg_api_base_url: str | None = None  # corporate ESG provider; ARP_ESG_API_URL
+    esg_api_base_url: str | None = Field(  # corporate ESG provider; ARP_ESG_API_URL (or ARP_ESG_API_BASE_URL)
+        default=None,
+        validation_alias=AliasChoices("ARP_ESG_API_URL", "ARP_ESG_API_BASE_URL"),
+    )
     esg_api_token: str | None = None  # Bearer token, ARP_ESG_API_TOKEN: never logged or stored in a load detail
     news_api_url: str = "https://api.refinitiv.com"  # Refinitiv Data Platform; ARP_NEWS_API_URL (portfolio/news/api_source.py)
     news_api_client_id: str | None = None  # RDP service account, ARP_NEWS_API_CLIENT_ID
@@ -120,6 +124,8 @@ class Settings(BaseSettings):
     reground_sample_size: int = Field(default=20, ge=0)
     snapshot_day: int = Field(default=1, ge=1, le=10)  # n-th business day of the month the snapshot is built
     max_upload_bytes: int = Field(default=100_000_000, description="Largest manual document upload accepted, in bytes.")
+    max_request_bytes: int = Field(default=250_000_000, description="Largest multipart/form-data request accepted, in bytes (whole body).")
+    max_body_bytes: int = Field(default=20_000_000, description="Largest request of any other kind accepted, in bytes (whole body).")
     cache_dir: Path = Field(default=REPO_ROOT / "backend" / ".cache")
     document_store_dir: Path = Field(
         default=REPO_ROOT / "backend" / ".document_store",
@@ -228,8 +234,13 @@ class Settings(BaseSettings):
         description="Which reranker runs when rerank_enabled: the bge-reranker cross-encoder (arp-models, else local "
         "CPU) or mLateOn ColBERT (arp-models only; without it retrieval order is kept).",
     )
-    # Cloud Run GPU services (arp/compute/), set up by scripts/gcp/setup_compute.sh. Empty = compute locally.
+    # Cloud Run GPU services (arp/compute/). Empty = compute locally.
     compute_parse_url: str | None = Field(default=None, description="arp-parse service URL: PDF parsing on a GPU.")
+    model_device: str = Field(
+        default="auto",
+        description="Device for the models the backend loads itself: auto (GPU when visible, else CPU), cpu, "
+        "or cuda (fail if no GPU)",
+    )
     compute_models_url: str | None = Field(default=None, description="arp-models service URL: rerank and embeddings.")
     models_universe_funnel_enabled: bool = Field(
         default=False,
@@ -619,6 +630,17 @@ class Settings(BaseSettings):
     _BACKEND_REQUIREMENTS = (
         ("retrieval_backend", "opensearch", "opensearch_url", "ARP_OPENSEARCH_URL", "ARP_RETRIEVAL_BACKEND=bm25"),
     )
+
+    @field_validator("model_device", mode="before")
+    @classmethod
+    def _model_device_known(cls, value: object) -> str:
+        text = str(value).strip().lower()
+        if text in ("auto", "cpu", "cuda"):
+            return text
+        if text:
+            logging.getLogger(__name__).warning(
+                "ARP_MODEL_DEVICE=%r is not auto, cpu or cuda; using auto", str(value))
+        return "auto"
 
     @field_validator("llm_batch")
     @classmethod

@@ -156,7 +156,7 @@ def test_signal_lab_embedder_stays_local(transport, monkeypatch):  # AC-48
     from arp.signal_lab.methods.embedding import default_embedder
 
     class FakeTextEmbedding:
-        def __init__(self, model_name):
+        def __init__(self, model_name, **kw):
             pass
 
         def embed(self, texts):

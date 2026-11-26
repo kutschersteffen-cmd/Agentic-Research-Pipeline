@@ -71,6 +71,9 @@ Windows / corporate proxy / VS Code + conda: see
 [`docs/INSTALLATION.md`](docs/INSTALLATION.md), which ships scripts under
 `scripts/windows/` that automate everything below.
 
+Deploying on a server with Docker, from the published images (no checkout, no build): see
+[`docs/DEPLOY_WITH_DOCKER.md`](docs/DEPLOY_WITH_DOCKER.md).
+
 ```bash
 # Backend
 cd backend
@@ -113,9 +116,9 @@ header not in `ARP_ALLOWED_ORIGINS` gets no bypass, so only the origins listed
 there can act as you), and the API only answers the host names in `ARP_TRUSTED_HOSTS`
 (default `localhost`, `127.0.0.1`, `[::1]`, `backend`), which blocks DNS
 rebinding; this host check applies to every route, voting included. Dev mode has a single user, so four-eyes
-steps (calibration approval, co-sign) need local mode. Never combine
-`ARP_AUTH_MODE=dev` with `ARP_ALLOWED_ORIGINS=["*"]`: `"*"` lets any website
-open in the same browser act as the dev approver.
+steps (calibration approval, co-sign) need local mode. The API
+refuses to start with `ARP_AUTH_MODE=dev` and `"*"` in `ARP_ALLOWED_ORIGINS`: `"*"` would let any website open in
+the same browser act as the dev approver.
 
 **Switching to local mode** (real per-person sign-in):
 
@@ -128,7 +131,7 @@ open in the same browser act as the dev approver.
 2. Set `ARP_AUTH_MODE=local` in `backend/.env` (Docker: in the `backend`
    service's `environment:` in `docker-compose.yml`, and remove
    `ARP_DEV_TRUSTED_NETWORKS` there).
-3. Restart the API (also after every later edit of the users file: it is read once).
+3. Restart the API. Later edits of the users file take effect on the next request, no restart needed.
 4. Each person pastes their token into the sidebar; the UI keeps it in the
    browser's `localStorage` until they sign out (or the API rejects it).
 5. CLI commands that write (`arp index calibration-save`, `arp index approve`, …)
@@ -406,23 +409,6 @@ arp db reindex opensearch         # also: object-store, engagement
 
 - **OpenSearch** — full-text/vector search over documents and chunks
 - **Object storage** (S3-compatible, MinIO locally) — immutable copies of source documents
-
-## Cloud compute (optional)
-
-PDF parsing, reranking and embeddings can run on Google Cloud Run GPUs (NVIDIA L4, scale to zero)
-instead of your machine. Once set up there is nothing to do per session: the backend sends the work
-to the cloud on its own and computes locally whenever the cloud is unreachable
-([spec](docs/superpowers/specs/2026-10-17-cloud-compute-design.md)).
-
-```bash
-bash scripts/gcp/setup_compute.sh <project-id>   # once; a GCP project with billing enabled
-# paste the printed lines into backend/.env and the GitHub repository variables, then:
-pip install -e backend && cd backend && arp compute check   # parse OK / rerank OK / embed OK
-```
-
-Every push to `main` that touches parsing or model code redeploys the services
-(`.github/workflows/deploy-compute.yml`). PDFs pass through the bucket `<project>-arp-compute` and
-are deleted after a day; the originals and the parse cache stay local.
 
 ## Documentation
 

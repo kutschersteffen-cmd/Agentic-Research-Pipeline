@@ -1,4 +1,6 @@
 import type { FieldDefinition } from "../types";
+import { DraftInput } from "./DraftInput";
+import { listText, parseList } from "../lib/draftInput";
 
 /** `markers`: a read-only rules note per field id (from the Rules list); clicking one calls `onMarkerClick`. */
 export function SchemaFieldsEditor({
@@ -49,9 +51,9 @@ export function SchemaFieldsEditor({
         </div>
         <label className="field-label">
           Seed keywords (comma-separated)
-          <input
-            value={f.seed_keywords.join(", ")}
-            onChange={(e) => update(idx, { seed_keywords: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
+          <DraftInput
+            value={listText(f.seed_keywords)}
+            onText={(t) => update(idx, { seed_keywords: parseList(t) })}
           />
         </label>
       </div>

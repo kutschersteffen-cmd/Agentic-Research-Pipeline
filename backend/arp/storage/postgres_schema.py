@@ -421,6 +421,28 @@ def _plan_source_ask_fk(conn: Connection) -> None:
         conn.execute(text(f"ALTER TABLE research_plans ADD CONSTRAINT {name} FOREIGN KEY (source_ask_id) REFERENCES agent_asks (id)"))
 
 
+def _exploration_source_ask_fk(conn: Connection) -> None:
+    """agent_explorations.source_ask_id, added by reconciliation without its foreign key: add it, named as
+    create_all names it, so a fresh database (which already has it) and an existing one end the same."""
+    from sqlalchemy import text
+
+    name = "agent_explorations_source_ask_id_fkey"
+    if not conn.execute(text("SELECT 1 FROM pg_constraint WHERE conname = :n"), {"n": name}).first():
+        conn.execute(text(f"ALTER TABLE agent_explorations ADD CONSTRAINT {name} "
+                          "FOREIGN KEY (source_ask_id) REFERENCES agent_asks (id)"))
+
+
+def _plan_source_exploration_fk(conn: Connection) -> None:
+    """research_plans.source_exploration_id, added by reconciliation without its foreign key: add it, named as
+    create_all names it, so a fresh database (which already has it) and an existing one end the same."""
+    from sqlalchemy import text
+
+    name = "research_plans_source_exploration_id_fkey"
+    if not conn.execute(text("SELECT 1 FROM pg_constraint WHERE conname = :n"), {"n": name}).first():
+        conn.execute(text(f"ALTER TABLE research_plans ADD CONSTRAINT {name} FOREIGN KEY (source_exploration_id) "
+                          "REFERENCES agent_explorations (id)"))
+
+
 # Run before create_all, so a legacy-shaped table does not shadow a new one of the same name.
 PRE_CREATE_STEPS: tuple[SchemaStep, ...] = (
     SchemaStep("0005_rename_legacy_companies", "companies -> legacy_companies", _rename_legacy_companies),
@@ -526,6 +548,16 @@ SCHEMA_STEPS: tuple[SchemaStep, ...] = (
         name="plan_source_ask_fk",
         description="research_plans.source_ask_id -> agent_asks.id foreign key, which reconciliation does not add",
         apply=_plan_source_ask_fk,
+    ),
+    SchemaStep(
+        name="exploration_source_ask_fk",
+        description="agent_explorations.source_ask_id -> agent_asks.id foreign key, which reconciliation does not add",
+        apply=_exploration_source_ask_fk,
+    ),
+    SchemaStep(
+        name="plan_source_exploration_fk",
+        description="research_plans.source_exploration_id -> agent_explorations.id foreign key, which reconciliation does not add",
+        apply=_plan_source_exploration_fk,
     ),
 )
 
@@ -660,15 +692,16 @@ def _gaps(conn: Connection, existing_tables: set[str]) -> tuple[list[str], list[
     return missing, [s.name for s in (*PRE_CREATE_STEPS, *SCHEMA_STEPS) if s.name not in applied], applied
 
 
-def schema_gaps(dsn: str) -> tuple[list[str], list[str]]:
-    """(missing tables, pending steps) as `schema_report` lists them, without its column and row scans:
-    the startup check (`arp.db.session.require_cutover`)."""
+def schema_gaps(dsn: str) -> tuple[list[str], list[str], list[str]]:
+    """(missing tables, missing "table.column" strings, pending steps) as `schema_report` lists them, without its row
+    scan: the startup check (`arp.db.session.require_cutover`)."""
     _sqlalchemy()
     from sqlalchemy import inspect
 
     with get_engine(dsn).connect() as conn:
         missing, pending, _ = _gaps(conn, set(inspect(conn).get_table_names()))
-    return missing, pending
+        columns = [f"{t}.{c}" for t, c in _missing_columns(conn)]
+    return missing, columns, pending
 
 
 def schema_report(dsn: str) -> dict:

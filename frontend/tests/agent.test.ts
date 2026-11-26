@@ -2,11 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import {
-  answerActions, budgetLine, chipLabel, composerModes, composerRequest, ctrlJTarget, draftPlanFromAsk, INBOX_KIND, lineDiff,
-  askingIn, nearEnd, needsYouLine, scriptLines, streamResized, sendsComposer, stepState, threadRows, threadTitle, untilCancelled, usd,
+  answerActions, budgetLine, canAccept, canTurnIntoPlan, chipLabel, composerModes, composerRequest, ctrlJTarget, draftPlanFromAsk, exploreFromAsk, focusAfterFromAsk, INBOX_KIND, lineDiff,
+  askingIn, COMPOSER_COPY, draftPlanFromExploration, explorationBadge, focusAfterDraft, nearEnd, needsYouLine, resultTable, scriptLines, streamResized, wasNearEnd, sendsComposer, stepState,
+  sameThread, threadRows, threadTitle, untilCancelled, usd,
 } from "../src/lib/agent.ts";
 import type { Plan } from "../src/lib/plans.ts";
-import type { AskThread } from "../src/types.ts";
+import type { AskThread, Exploration } from "../src/types.ts";
 import { HUBS, redirectHash } from "../src/lib/nav.ts";
 
 // Agent screen shell (docs/superpowers/specs/2026-11-21-agent-panel-code-mode.md, slice 6).
@@ -102,9 +103,9 @@ test("every inbox kind the route serves has a label", () => {
 
 // Slice 13: ask threads (Phase 7).
 
-test("the composer's modes: Ask first and pressed, Plan only for a viewer (AC-78)", () => {
-  assert.deepEqual(composerModes(true), { modes: ["Ask", "Plan"], initial: "Ask" });
-  assert.deepEqual(composerModes(false), { modes: ["Plan"], initial: "Plan" });
+test("the composer's modes: Ask first and pressed, Plan only for a viewer, Explore appended once slice 10 is merged (AC-78)", () => {
+  assert.deepEqual(composerModes(true), { modes: ["Ask", "Plan", "Explore"], initial: "Ask" });
+  assert.deepEqual(composerModes(false), { modes: ["Plan", "Explore"], initial: "Plan" });
 });
 
 test("Ctrl/⌘J opens the Agent screen, or nothing for a viewer (AC-79)", () => {
@@ -124,7 +125,7 @@ test("Ask mode follows up in the selected ask thread, else starts one", () => {
 
 test("a viewer gets no buttons under an answer (AC-79c)", () => {
   assert.deepEqual(answerActions(false), []);
-  assert.deepEqual(answerActions(true), ["Draft a plan"]);
+  assert.deepEqual(answerActions(true), ["Draft a plan", "Explore"]);  // slice 14 adds Explore, as AC-79c says
 });
 
 test("Draft a plan shows the API's detail when the request fails (AC-77b)", async () => {
@@ -138,6 +139,26 @@ test("Draft a plan sends the standalone question and the ask's id", async () => 
   const out = await draftPlanFromAsk({ id: "a1", standalone_question: "S?" }, (path, body) => (sent.push([path, body]), Promise.resolve(plan)));
   assert.deepEqual(out, { ok: true, plan });
   assert.deepEqual(sent, [["/api/plans", { brief: "S?", source_ask_id: "a1" }]]);
+});
+
+test("Explore sends the standalone question and the ask's id (AC-80, AC-81)", async () => {
+  const sent: unknown[] = [];
+  const exploration = { id: "e1" } as Exploration;
+  const out = await exploreFromAsk({ id: "a1", standalone_question: "S?" }, (path, body) => (sent.push([path, body]), Promise.resolve(exploration)));
+  assert.deepEqual(out, { ok: true, exploration });
+  assert.deepEqual(sent, [["/api/agent/explorations", { question: "S?", source_ask_id: "a1" }]]);
+});
+
+test("Explore shows the API's detail when the request fails", async () => {
+  const ask = { id: "a1", standalone_question: "S?" };
+  assert.deepEqual(await exploreFromAsk(ask, () => Promise.reject(new Error("404: ask not found"))), { ok: false, error: "ask not found" });
+});
+
+test("after Draft a plan or Explore, focus goes to the new link card, or back to the button on failure", () => {
+  assert.deepEqual(focusAfterFromAsk("exploration", { ok: true, exploration: { id: "e 1" } as Exploration }), { href: "#/agent/exploration/e%201" });
+  assert.deepEqual(focusAfterFromAsk("plan", { ok: true, plan: { id: "plan_1" } as Plan }), { href: "#/agent/plan_1" });
+  assert.deepEqual(focusAfterFromAsk("exploration", { ok: false, error: "x" }), { button: "Explore" });
+  assert.deepEqual(focusAfterFromAsk("plan", { ok: false, error: "x" }), { button: "Draft a plan" });
 });
 
 test("plans and ask threads share one list, newest first", () => {
@@ -183,6 +204,51 @@ test("a thread's asks that answer after another thread was picked are dropped", 
   assert.deepEqual([shown, errors], [["B"], []]);
 });
 
+// Explorations (slice 10).
+
+const exp = (id: string, created_at: string, label: "exploratory" | "accepted" = "exploratory") =>
+  ({ id, question: `question ${id} ${"x".repeat(70)}`, created_at, label }) as unknown as Exploration;
+
+test("explorations join the thread list, newest first, with their label as chip", () => {
+  const plans = [{ id: "p1", brief: "plan one", status: "draft", created_at: "2026-11-22T10:00:00Z" }] as Plan[];
+  const rows = threadRows(plans, [], [exp("e1", "2026-11-22T11:00:00Z"), exp("e0", "2026-11-22T09:00:00Z", "accepted")]);
+  assert.deepEqual(rows.map((r) => [r.kind, r.id, r.status]), [["exploration", "e1", "exploratory"], ["plan", "p1", "draft"], ["exploration", "e0", "accepted"]]);
+  assert.equal(rows[0].title.length, 60);
+});
+
+test("Explore mode sends the question to the sandbox lane, never with source_ask_id", () => {
+  assert.deepEqual(composerRequest("Explore", "q", { kind: "ask", id: "T" }), { path: "/api/agent/explorations", body: { question: "q" } });
+  const { label, submit, sending, help } = COMPOSER_COPY.Explore;
+  assert.deepEqual({ label, submit, sending, help }, { label: "Question", submit: "Explore", sending: "Exploring…", help: "Enter runs an exploration; Shift+Enter adds a line." });
+});
+
+test("an exploration shows the badge Exploratory: not reviewed until accepted (AC-49)", () => {
+  assert.equal(explorationBadge({ label: "exploratory" }), "Exploratory: not reviewed");
+  assert.equal(explorationBadge({ label: "accepted" }), null);
+});
+
+test("Accept is offered only on a done exploration nobody accepted yet (AC-11 to AC-13)", () => {
+  assert.equal(canAccept({ status: "done", accepted_at: null }), true);
+  assert.equal(canAccept({ status: "failed", accepted_at: null }), false);
+  assert.equal(canAccept({ status: "timeout", accepted_at: null }), false);
+  assert.equal(canAccept({ status: "done", accepted_at: "2026-11-24T09:00:00+00:00" }), false);
+});
+
+test("the exploration card gates Accept on canAccept and keeps the badge on every unaccepted card (AC-14, AC-14b, AC-15)", () => {
+  const card = readFileSync(new URL("../src/components/ExplorationCard.tsx", import.meta.url), "utf8");
+  assert.match(card, /\{canAccept\(e\) && <button /);
+  assert.doesNotMatch(card, /\{badge && <button/);
+  assert.match(card, /explorationBadge\(e\)/);
+});
+
+test("a result is a table only when it is a list of flat objects", () => {
+  assert.deepEqual(resultTable([{ sector: "Energy", w: 4.5 }, { sector: "IT", ok: true, w: null }]), {
+    columns: ["sector", "w", "ok"],
+    rows: [["Energy", 4.5, null], ["IT", null, true]],
+  });
+  for (const json of [1, "x", null, [], [1, 2], [{ a: { b: 1 } }], [{ a: [1] }], { a: 1 }]) assert.equal(resultTable(json), null);
+});
+
 // Chat-style stream: the composer stays at the bottom and the stream follows new turns only for a reader at its end.
 test("the stream counts as at its end within 80 px of the bottom", () => {
   assert.equal(nearEnd({ scrollTop: 920, scrollHeight: 1500, clientHeight: 500 }), true); // 80 px left
@@ -206,4 +272,64 @@ test("a taller composer keeps a reader at the end pinned but never raises Jump t
 
 test("Jump to latest goes once the end is in view without a scroll, as when the box grows to fit everything", () => {
   assert.deepEqual(streamResized({ wasNearEnd: false, contentGrew: false, boxShrank: false, nowNearEnd: true }), { scrollToEnd: false, jump: false });
+});
+
+test("the accepted chip writes its word in ink and keeps the green on the square only (contrast on a selected row)", () => {
+  const css = readFileSync(new URL("../src/index.css", import.meta.url), "utf8");
+  assert.match(css, /\.status-accepted \{ color: var\(--ink\); \}/);
+  assert.match(css, /\.status-accepted::before \{ background: var\(--high\); \}/);
+});
+
+test("a fast answer is still followed when the follow-down's scroll event lands after it", () => {
+  // Followed down to the end of `Working…` (1000 + 87 px of content, a 500 px box): scrollTop 587. The answer (+800 px)
+  // then grows the stream before that scroll's event fires, which reads as scrolled up and clears `atEnd`.
+  const before = { scrollHeight: 1087, clientHeight: 500 };
+  assert.equal(wasNearEnd(false, 587, before), true);
+  assert.deepEqual(streamResized({ wasNearEnd: wasNearEnd(false, 587, before), contentGrew: true, boxShrank: false, nowNearEnd: false }),
+    { scrollToEnd: true, jump: false });
+  // A reader who really scrolled up stays put and gets the button.
+  assert.equal(wasNearEnd(false, 0, before), false);
+  assert.equal(wasNearEnd(true, 0, before), true); // your own send sets `atEnd`
+});
+
+// Write action: exploration to draft plan (agent-panel-code-mode slice 12).
+
+test("only a done, accepted exploration offers Turn into a plan (AC-66, AC-66b)", () => {
+  const at = "2026-11-22T10:00:00Z";
+  assert.equal(canTurnIntoPlan({ status: "done", accepted_at: at }), true);
+  assert.equal(canTurnIntoPlan({ status: "done", accepted_at: null }), false);
+  assert.equal(canTurnIntoPlan({ status: "failed", accepted_at: at }), false);
+  assert.equal(canTurnIntoPlan({ status: "timeout", accepted_at: at }), false);
+});
+
+test("Draft plan posts the brief to the exploration's plan route and returns the plan", async () => {
+  const sent: [string, unknown][] = [];
+  const plan = { id: "plan_1" } as Plan;
+  const out = await draftPlanFromExploration({ id: "e/1" }, "fetch missing reports", async (path, body) => { sent.push([path, body]); return plan; });
+  assert.deepEqual(sent, [["/api/agent/explorations/e%2F1/plan", { brief: "fetch missing reports" }]]);
+  assert.deepEqual(out, { ok: true, plan });
+});
+
+test("a refused Draft plan keeps the field open with the detail and drafts no thread (AC-65c)", async () => {
+  const drafted: Plan[] = [];
+  const out = await draftPlanFromExploration({ id: "e1" }, "q", async () => { throw new Error("422: line 1: bad"); });
+  if (out.ok) drafted.push(out.plan);
+  assert.deepEqual(out, { ok: false, error: "line 1: bad" });
+  assert.deepEqual(drafted, []);
+});
+
+test("after Draft plan, focus goes to the error when refused and leaves the card when drafted", () => {
+  assert.equal(focusAfterDraft({ ok: false }), "error");
+  assert.equal(focusAfterDraft({ ok: true }), null);
+});
+
+// Agent screen fixes (docs/superpowers/specs/2026-11-24-agent-screen-fixes.md).
+
+test("the same thread is the same kind and id, not the same object (AC-1, AC-2)", () => {
+  assert.equal(sameThread({ kind: "plan", id: "p1" }, { kind: "plan", id: "p1" }), true);
+  assert.equal(sameThread(null, null), true);
+  assert.equal(sameThread({ kind: "plan", id: "p1" }, { kind: "exploration", id: "p1" }), false);
+  assert.equal(sameThread({ kind: "plan", id: "p1" }, { kind: "plan", id: "p2" }), false);
+  assert.equal(sameThread({ kind: "plan", id: "p1" }, null), false);
+  assert.equal(sameThread(null, { kind: "ask", id: "t1" }), false);
 });

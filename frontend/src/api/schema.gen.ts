@@ -138,13 +138,97 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Explorations
+         * @description Every exploration, newest first.
+         */
+        get: operations["list_explorations_api_agent_explorations_get"];
         put?: never;
         /**
          * Create Exploration
          * @description Runs the question's code in the sandbox; answers 200 with the stored exploration whether it ran or failed.
+         *     A `source_ask_id` that names no ask answers 404 and runs nothing.
          */
         post: operations["create_exploration_api_agent_explorations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent/explorations/{exploration_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Exploration */
+        get: operations["get_exploration_api_agent_explorations__exploration_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent/explorations/{exploration_id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Exploration
+         * @description A person accepts the exploration's result; its label becomes `accepted`. Only a `done` exploration has a result.
+         */
+        post: operations["accept_exploration_api_agent_explorations__exploration_id__accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent/explorations/{exploration_id}/miniapp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Miniapp
+         * @description "Show as mini-app" (and "Regenerate mini-app"): one model call writes a script-free page and follow-up questions
+         *     for the done exploration's result, cleaned and stored on it.
+         */
+        post: operations["create_miniapp_api_agent_explorations__exploration_id__miniapp_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/agent/explorations/{exploration_id}/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Plan From Exploration
+         * @description "Turn into a plan…" (D9): the planner drafts a plan from an accepted exploration. The plan stays a draft, so
+         *     nothing runs until a person approves it. Answers the plan as `GET /api/plans/{id}` does.
+         */
+        post: operations["plan_from_exploration_api_agent_explorations__exploration_id__plan_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -160,7 +244,8 @@ export interface paths {
         };
         /**
          * Inbox
-         * @description Draft plans and calls awaiting review, oldest first (a plan by its `created_at`, a call by its `started_at`).
+         * @description Draft plans, calls awaiting review and `done` explorations not yet accepted, oldest first (a plan or an exploration
+         *     by its `created_at`, a call by its `started_at`).
          */
         get: operations["inbox_api_agent_inbox_get"];
         put?: never;
@@ -1458,6 +1543,109 @@ export interface paths {
          *     this table or schema would not supply. Fitting templates first.
          */
         post: operations["match_templates_api_decision_templates_match_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/desk/chats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Chats */
+        get: operations["list_chats_api_desk_chats_get"];
+        put?: never;
+        /** Create Chat */
+        post: operations["create_chat_api_desk_chats_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/desk/chats/{chat_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Chat */
+        get: operations["get_chat_api_desk_chats__chat_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/desk/chats/{chat_id}/scope": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Scope */
+        put: operations["put_scope_api_desk_chats__chat_id__scope_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/desk/chats/{chat_id}/turns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Turn */
+        post: operations["post_turn_api_desk_chats__chat_id__turns_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/desk/companies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Companies */
+        get: operations["list_companies_api_desk_companies_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/desk/turns/{turn_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Turn */
+        get: operations["get_turn_api_desk_turns__turn_id__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4378,6 +4566,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/refine/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Documents
+         * @description Every RFP project, then every report with a deck, each group newest first. Any signed-in role.
+         */
+        get: operations["get_documents_api_refine_documents_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/refine/threads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Threads
+         * @description One row per document with at least one turn, newest first by its newest turn. Any signed-in role.
+         */
+        get: operations["get_threads_api_refine_threads_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/refine/turns/{turn_id}": {
         parameters: {
             query?: never;
@@ -4613,7 +4841,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Upload Characteristics Dataset */
+        /**
+         * Upload Characteristics Dataset
+         * @description `name` may hold `/` ("B/M"); only the stored file name is slugged, the name itself is not changed.
+         */
         post: operations["upload_characteristics_dataset_api_replication_specs__spec_run_id__datasets_characteristics__name__post"];
         delete?: never;
         options?: never;
@@ -4786,6 +5017,43 @@ export interface paths {
          * @description Removes an unfinished report's folder. A finished one, or one still being worked on, is never removed.
          */
         delete: operations["discard_report_api_reports__report_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reports/{report_id}/deck": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Deck */
+        get: operations["get_deck_api_reports__report_id__deck_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reports/{report_id}/deck/html": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Deck Html
+         * @description The deck as the house HTML, for the Refine live view; the same renderer the export starts from.
+         */
+        get: operations["get_deck_html_api_reports__report_id__deck_html_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -10105,7 +10373,7 @@ export interface components {
             benchmark?: string | null;
             /**
              * Characteristics Refs
-             * @description characteristic_name -> path returned by POST .../datasets/characteristics/{name}.
+             * @description characteristic_name -> file name returned by POST .../datasets/characteristics/{name}.
              */
             characteristics_refs?: {
                 [key: string]: string;
@@ -10121,7 +10389,7 @@ export interface components {
             price_kind: string;
             /**
              * Prices Ref
-             * @description Path returned by POST .../datasets/prices.
+             * @description File name returned by POST .../datasets/prices.
              */
             prices_ref: string;
             /** Tickers */
@@ -10631,7 +10899,7 @@ export interface components {
             company_id: string;
             doc_type: components["schemas"]["DocType"];
             /** File */
-            file?: string;
+            file: string;
         };
         /** Body_upload_document_api_rfp_documents_post */
         Body_upload_document_api_rfp_documents_post: {
@@ -12765,6 +13033,25 @@ export interface components {
             /** Source Ref */
             source_ref?: string | null;
         };
+        /** DatasetUploadResponse */
+        DatasetUploadResponse: {
+            /** First Date */
+            first_date: string;
+            /** Last Date */
+            last_date: string;
+            /**
+             * Ref
+             * @description Stored file name; pass it back as prices_ref or a characteristics_refs value.
+             */
+            ref: string;
+            /** Rows */
+            rows: number;
+            /**
+             * Tickers
+             * @description The header's ticker names, in file order.
+             */
+            tickers: string[];
+        };
         /**
          * DecarbonisationTrajectory
          * @description The EU PAB/CTB-shaped constraint, and the only part of the stack
@@ -13141,6 +13428,175 @@ export interface components {
             slug?: string | null;
             /** Url */
             url?: string | null;
+        };
+        /** DeskChatCreated */
+        DeskChatCreated: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: number;
+            /** Title */
+            title: string;
+        };
+        /** DeskChatIn */
+        DeskChatIn: {
+            /** Title */
+            title?: string | null;
+        };
+        /** DeskChatListItem */
+        DeskChatListItem: {
+            /** Id */
+            id: number;
+            /** Title */
+            title: string;
+            /** Turns */
+            turns: number;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** DeskChatOut */
+        DeskChatOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: number;
+            /** Scope */
+            scope: components["schemas"]["DeskScopeItem"][];
+            /** Title */
+            title: string;
+            /** Turns */
+            turns: components["schemas"]["DeskTurnSummary"][];
+        };
+        /** DeskCompanies */
+        DeskCompanies: {
+            /** Items */
+            items: components["schemas"]["DeskCompany"][];
+            /** Total */
+            total: number;
+        };
+        /** DeskCompany */
+        DeskCompany: {
+            /** Company Id */
+            company_id: string;
+            /** Name */
+            name: string;
+            /** Reports */
+            reports: number;
+        };
+        /** DeskScopeIn */
+        DeskScopeIn: {
+            /** Items */
+            items: components["schemas"]["DeskScopeItemIn"][];
+        };
+        /** DeskScopeItem */
+        DeskScopeItem: {
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
+            /** Ref */
+            ref: string;
+        };
+        /** DeskScopeItemIn */
+        DeskScopeItemIn: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "company" | "universe" | "run";
+            /** Ref */
+            ref: string;
+        };
+        /** DeskScopeOut */
+        DeskScopeOut: {
+            /** Scope */
+            scope: components["schemas"]["DeskScopeItem"][];
+        };
+        /** DeskStage */
+        DeskStage: {
+            /** Detail */
+            detail: {
+                [key: string]: unknown;
+            } | null;
+            /** Ms */
+            ms: number | null;
+            /** Name */
+            name: string;
+            /** Status */
+            status: string;
+        };
+        /** DeskTurnIn */
+        DeskTurnIn: {
+            /**
+             * Mode
+             * @default quick
+             * @enum {string}
+             */
+            mode: "quick" | "thorough";
+            /** Question */
+            question: string;
+        };
+        /** DeskTurnOut */
+        DeskTurnOut: {
+            /** Answer */
+            answer: {
+                [key: string]: unknown;
+            } | null;
+            /** Chat Id */
+            chat_id: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error */
+            error: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /** Id */
+            id: number;
+            /** Mode */
+            mode: string;
+            /** Question */
+            question: string;
+            /** Sources */
+            sources: {
+                [key: string]: unknown;
+            }[];
+            /** Stages */
+            stages: components["schemas"]["DeskStage"][];
+            /** Status */
+            status: string;
+        };
+        /** DeskTurnStarted */
+        DeskTurnStarted: {
+            /** Turn Id */
+            turn_id: number;
+        };
+        /** DeskTurnSummary */
+        DeskTurnSummary: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: number;
+            /** Mode */
+            mode: string;
+            /** Question */
+            question: string;
+            /** Status */
+            status: string;
         };
         /**
          * Dimension
@@ -13763,12 +14219,19 @@ export interface components {
              * @enum {string}
              */
             label: "exploratory" | "accepted";
+            /** Miniapp Asks */
+            miniapp_asks: string[] | null;
+            /** Miniapp Html */
+            miniapp_html: string | null;
             /** Model */
             model: string | null;
             /** Question */
             question: string;
             /** Result */
             result: unknown;
+            source_ask: components["schemas"]["SourceAsk"] | null;
+            /** Source Ask Id */
+            source_ask_id: string | null;
             /**
              * Status
              * @enum {string}
@@ -13777,10 +14240,17 @@ export interface components {
             /** Tool Calls */
             tool_calls: components["schemas"]["ToolCall"][];
         };
+        /** ExplorationPlanRequest */
+        ExplorationPlanRequest: {
+            /** Brief */
+            brief?: string | null;
+        };
         /** ExplorationRequest */
         ExplorationRequest: {
             /** Question */
             question: string;
+            /** Source Ask Id */
+            source_ask_id?: string | null;
         };
         /** ExportRequest */
         ExportRequest: {
@@ -17086,6 +17556,15 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** RefineDocument */
+        RefineDocument: {
+            /** Doc Id */
+            doc_id: string;
+            /** Kind */
+            kind: string;
+            /** Title */
+            title: string;
+        };
         /** RefineHistoryItem */
         RefineHistoryItem: {
             /** Message */
@@ -17099,6 +17578,24 @@ export interface components {
             id: number | null;
             /** Reason */
             reason: string;
+        };
+        /** RefineThread */
+        RefineThread: {
+            /** Doc Id */
+            doc_id: string;
+            /** Kind */
+            kind: string;
+            /**
+             * Last Turn At
+             * Format: date-time
+             */
+            last_turn_at: string;
+            /** Status */
+            status: string;
+            /** Title */
+            title: string;
+            /** Turns */
+            turns: number;
         };
         /** RefineTurn */
         RefineTurn: {
@@ -18896,6 +19393,13 @@ export interface components {
             snapshot_id: string;
             /** Supersedes */
             supersedes?: string | null;
+        };
+        /** SourceAsk */
+        SourceAsk: {
+            /** Question */
+            question: string;
+            /** Thread Id */
+            thread_id: string;
         };
         /**
          * SourceCandidate
@@ -21652,6 +22156,26 @@ export interface operations {
             };
         };
     };
+    list_explorations_api_agent_explorations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Exploration"][];
+                };
+            };
+        };
+    };
     create_exploration_api_agent_explorations_post: {
         parameters: {
             query?: never;
@@ -21672,6 +22196,136 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Exploration"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_exploration_api_agent_explorations__exploration_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exploration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Exploration"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept_exploration_api_agent_explorations__exploration_id__accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exploration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Exploration"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_miniapp_api_agent_explorations__exploration_id__miniapp_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exploration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Exploration"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    plan_from_exploration_api_agent_explorations__exploration_id__plan_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exploration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ExplorationPlanRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -24117,6 +24771,223 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TemplateMatch"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_chats_api_desk_chats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeskChatListItem"][];
+                };
+            };
+        };
+    };
+    create_chat_api_desk_chats_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeskChatIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeskChatCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_chat_api_desk_chats__chat_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chat_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeskChatOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_scope_api_desk_chats__chat_id__scope_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chat_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeskScopeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeskScopeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_turn_api_desk_chats__chat_id__turns_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chat_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeskTurnIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeskTurnStarted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_companies_api_desk_companies_get: {
+        parameters: {
+            query?: {
+                q?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeskCompanies"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_turn_api_desk_turns__turn_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                turn_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeskTurnOut"];
                 };
             };
             /** @description Validation Error */
@@ -29590,6 +30461,46 @@ export interface operations {
             };
         };
     };
+    get_documents_api_refine_documents_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefineDocument"][];
+                };
+            };
+        };
+    };
+    get_threads_api_refine_threads_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefineThread"][];
+                };
+            };
+        };
+    };
     get_turn_api_refine_turns__turn_id__get: {
         parameters: {
             query?: never;
@@ -29626,8 +30537,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                doc_id: string;
                 kind: string;
+                doc_id: string;
             };
             cookie?: never;
         };
@@ -29658,8 +30569,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                doc_id: string;
                 kind: string;
+                doc_id: string;
             };
             cookie?: never;
         };
@@ -29694,8 +30605,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                doc_id: string;
                 kind: string;
+                doc_id: string;
             };
             cookie?: never;
         };
@@ -29969,9 +30880,9 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
+        requestBody?: {
             content: {
-                "application/json": components["schemas"]["ApproveSpecRequest"];
+                "application/json": components["schemas"]["ApproveSpecRequest"] | null;
             };
         };
         responses: {
@@ -30056,9 +30967,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DatasetUploadResponse"];
                 };
             };
             /** @description Validation Error */
@@ -30093,9 +31002,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["DatasetUploadResponse"];
                 };
             };
             /** @description Validation Error */
@@ -30415,6 +31322,70 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_deck_api_reports__report_id__deck_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_deck_html_api_reports__report_id__deck_html_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
+                };
             };
             /** @description Validation Error */
             422: {

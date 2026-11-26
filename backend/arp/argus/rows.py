@@ -14,10 +14,10 @@ from arp.api.auth import Principal
 from arp.argus.companies import problem_of
 from arp.argus.flows import ArgusFlow
 from arp.db.models import Company, CompanyIdentifier
-from arp.orchestration.review_queue import latest_decisions
+from arp.orchestration.review_queue import effective_decisions
 from arp.review.items import list_open_items
 from arp.schemas.common import RunManifest
-from arp.schemas.review import field_item_key, period_key
+from arp.schemas.review import results_field_key
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.run_store import RunStore
@@ -76,15 +76,20 @@ def _prior_runs(run_store: RunStore, last_runs: dict[str, str], principal: Princ
         m = run_store.load_manifest(run_id)
         if m is None:
             continue
-        decisions = latest_decisions(run_store, run_id)
+        decisions = effective_decisions(run_store, run_id)
+        decided_keys = {d["item_key"] for d in run_store.read_decisions(run_id)}
         open_items = list_open_items(run_store, principal, run_id=run_id)
+        open_keys = {i.item_key for i in open_items}
         results = run_store.read_results(run_id)
         for cid in (c for c, r in last_runs.items() if r == run_id):
             approved = 0
             for row in (r for r in results if r.get("company_id") == cid):
                 for f in row.get("fields", []):
-                    d = decisions.get(field_item_key(row.get("issuer_key", ""), f["field_id"], period_key(f)))
-                    if (d is None and f.get("route") == "auto_accept") or (d and d.get("decision") in ("approve", "edit", "correct")):
+                    key = results_field_key(row, f)
+                    if key in open_keys:
+                        continue
+                    d = decisions.get(key)
+                    if (key not in decided_keys and f.get("route") == "auto_accept") or (d and d.get("decision") in ("approve", "edit", "correct")):
                         approved += 1
             waiting = sum(1 for i in open_items if i.payload.get("company_id") == cid)
             out[cid] = PriorRun(label=run_label(m), date=m.created_at[:10], approved=approved, waiting=waiting)
