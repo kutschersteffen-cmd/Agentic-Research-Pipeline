@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from datetime import date
 from typing import TypedDict
 
@@ -228,7 +229,10 @@ async def _gather_evidence(state: FieldState) -> dict:
     )
     if gate is None:
         return {"evidence": evidence, "evidence_unranked": bool(unranked), "explain": explain}
+    started = time.perf_counter()
     gated = await gate.apply(state["field"], evidence, unranked=bool(unranked))
+    if state.get("seen") is not None:
+        state["seen"].setdefault("sub_seconds", {})["gate"] = time.perf_counter() - started
     return {"evidence": gated.kept, "evidence_unranked": bool(unranked), "explain": explain, "gate": gated,
             "usages": state["usages"] + ([gated.usage] if gated.usage else [])}
 
@@ -334,10 +338,14 @@ async def _aggregate(state: FieldState) -> dict:
         checked = []
         for f in extracted:
             if ReasonCode.NOT_GROUNDED in f.review_reasons:
+                started = time.perf_counter()
                 f, usage = await check_on_page(
                     state["company_name"], state["field"], f, passages, state["documents_by_id"], state["verifier_llm"],
                     on_reading=None if seen is None else lambda r: seen.update(reading=r),
                 )
+                if seen is not None:
+                    sub = seen.setdefault("sub_seconds", {})
+                    sub["vision"] = sub.get("vision", 0.0) + time.perf_counter() - started
                 usages = usages + [usage] if usage else usages
                 if seen is not None and usage:
                     seen["vision_usage"] = usage
@@ -399,6 +407,9 @@ def _trace_entry(state: FieldState, grouped: bool) -> dict:
         adjudicator=trace.call(state["adjudicator_usage"], state["adjudicator"]),
         vision=trace.call(seen.get("vision_usage"), seen.get("reading")),
         not_found_reason=next((f.not_found_reason for f in extracted), None),
+        ranking=None if grouped or trace.retrieval(explain) is None else
+        {k: explain[k] for k in ("ranks", "ranked_count", "ranks_capped", "pieces") if k in explain},
+        sub_seconds=(seen or {}).get("sub_seconds"),
     )
 
 

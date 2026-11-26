@@ -11,7 +11,8 @@ RUN = "r1"
 def test_field_entry_has_every_key():
     entry = field_entry("f1")
     assert set(entry) == {"field_id", "grouped", "skipped", "passages", "extractor", "verifier", "adjudicator", "vision",
-                          "retrieval", "near_misses", "not_found_reason", "seconds", "gate", "gate_dropped"}  # why-this-evidence, step-timing, evidence-gate specs
+                          "retrieval", "near_misses", "not_found_reason", "seconds", "gate", "gate_dropped",
+                          "ranking", "sub_seconds"}  # why-this-evidence, step-timing, evidence-gate, extraction-trace specs
     assert entry == {
         "field_id": "f1",
         "grouped": False,
@@ -27,6 +28,8 @@ def test_field_entry_has_every_key():
         "seconds": {},
         "gate": None,
         "gate_dropped": [],
+        "ranking": None,
+        "sub_seconds": {},
     }
 
 

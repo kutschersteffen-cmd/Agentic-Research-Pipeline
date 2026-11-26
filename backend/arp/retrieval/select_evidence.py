@@ -15,6 +15,7 @@ from arp.schemas.common import DocType, DocumentChunk
 from arp.storage.document_store import DocumentContentStore
 
 _RRF_K = 60
+TRACE_RANK_CAP = 100  # explain["ranks"] keeps this many of the cut order's ranked chunks, plus the returned ones
 # Concurrent fields (worker threads) share a document's chunks: one embeds the missing ones, the rest reuse them.
 _EMBED_LOCK = threading.Lock()
 _FALLBACK_WARNING = "arp-models unavailable; embedding with MiniLM"
@@ -241,7 +242,10 @@ def select_relevant_chunks(
       Walkthrough shows it): `method`, `reranked`, `candidates`, per-chunk `scores`
       (`bm25`, `vector_rank`, `rrf`, `rerank`, each only when computed) for the
       returned chunks and `near_misses`, the up to 3 chunk ids ranked right after
-      the cut. The return value is the same with or without it.
+      the cut. The return value is the same with or without it. Also `ranks` (chunk id -> its 1-based rank
+      in each ranking that ran: `bm25`, `vector`, `fused`, `rerank`), the first TRACE_RANK_CAP of the cut
+      order plus the returned chunks; `ranked_count` (before the cap), `ranks_capped`; with `parents`,
+      `pieces` (returned parent id -> {ranking: the piece that placed it}).
     - `parents`: small-to-big (candidate id -> the chunk returned in its place). Each ranking becomes a
       ranking of parents before fusion: a parent takes its best candidate's rank (and BM25 score), its other
       candidates drop out. Scores, near-misses and the reranker then see parents.
@@ -251,20 +255,39 @@ def select_relevant_chunks(
     """
     scores: dict[str, dict] = {}
     ran: dict[str, str | None] = {"embed_model": None, "rerank_model": None}
+    rankings: dict[str, list[str]] = {}  # ranking name -> chunk ids, best first (for explain["ranks"])
+    piece_rankings: dict[str, list[str]] = {}  # small-to-big: the same rankings before the collapse to parents
     candidates = chunks
     if doc_type_filter:
         candidates = [c for c in candidates if c.doc_type in doc_type_filter]
     if not candidates:
         return []
 
-    def record(method: str, picked: list[DocumentChunk], rest: list[DocumentChunk], reranked: bool = False) -> list[DocumentChunk]:
+    def record(
+        method: str, picked: list[DocumentChunk], rest: list[DocumentChunk], reranked: bool = False,
+        order: list[DocumentChunk] = (),
+    ) -> list[DocumentChunk]:
         if explain is not None:
             near = [c.chunk_id for c in rest[:3]]
             keep = [c.chunk_id for c in picked] + near
+            ranks: dict[str, dict[str, int]] = {}
+            for name, ids in rankings.items():
+                for rank, cid in enumerate(ids, start=1):
+                    ranks.setdefault(cid, {})[name] = rank
+            kept = [c.chunk_id for c in order if c.chunk_id in ranks][:TRACE_RANK_CAP] + [c.chunk_id for c in picked]
+            capped = {cid: ranks[cid] for cid in kept if cid in ranks}
             explain.update(
                 method=method, reranked=reranked, candidates=len(candidates),
                 scores={cid: scores[cid] for cid in keep if scores.get(cid)}, near_misses=near, **ran,
+                ranks=capped, ranked_count=len(ranks), ranks_capped=len(capped) < len(ranks),
             )
+            explain.pop("pieces", None)
+            if parents:
+                piece_of: dict[str, dict[str, str]] = {}
+                for name, ids in piece_rankings.items():
+                    for cid in ids:
+                        piece_of.setdefault(parents[cid].chunk_id, {}).setdefault(name, cid)
+                explain["pieces"] = {c.chunk_id: piece_of[c.chunk_id] for c in picked if c.chunk_id in piece_of}
         return picked
 
     if not query_terms:
@@ -275,18 +298,19 @@ def select_relevant_chunks(
 
     def finish(ranked: list[DocumentChunk], method: str) -> list[DocumentChunk]:
         if rerank_candidates is None:
-            return record(method, ranked[:max_chunks], ranked[max_chunks:])
+            return record(method, ranked[:max_chunks], ranked[max_chunks:], order=ranked)
         pool = ranked[:rerank_candidates]
         rerank_scores: dict[str, float] | None = {} if explain is not None else None
         picked = rerank(query_text, pool, max_chunks, scores_out=rerank_scores, model=rerank_model)
         if not rerank_scores:  # not recording, or the model did not score
-            return record(method, picked, pool[max_chunks:])
+            return record(method, picked, pool[max_chunks:], order=ranked)
         ran["rerank_model"] = RERANK_KEYS[rerank_model]
         for cid, score in rerank_scores.items():
             scores.setdefault(cid, {})["rerank"] = score
         chosen = {c.chunk_id for c in picked}
         rest = sorted((c for c in pool if c.chunk_id not in chosen), key=lambda c: rerank_scores[c.chunk_id], reverse=True)
-        return record(method, picked, rest, reranked=True)
+        rankings["rerank"] = [c.chunk_id for c in sorted(pool, key=lambda c: rerank_scores[c.chunk_id], reverse=True)]
+        return record(method, picked, rest, reranked=True, order=ranked)
 
     use_opensearch_bm25 = retrieval_backend == "opensearch" and opensearch_client is not None
     if use_opensearch_bm25:
@@ -301,6 +325,7 @@ def select_relevant_chunks(
     if require_hit:
         scored = [(chunk_id, score) for chunk_id, score in scored if score > 0.0]
     if parents:
+        piece_rankings["bm25"] = [chunk_id for chunk_id, _ in scored]
         best: dict[str, float] = {}
         for chunk_id, score in scored:  # highest first, so the first piece seen is the parent's best
             best.setdefault(parents[chunk_id].chunk_id, score)
@@ -308,6 +333,7 @@ def select_relevant_chunks(
         by_id = {p.chunk_id: p for p in parents.values()}
     for chunk_id, score in scored:
         scores.setdefault(chunk_id, {})["bm25"] = float(score)
+    rankings["bm25"] = [chunk_id for chunk_id, _ in scored]
     bm25_method = "opensearch" if use_opensearch_bm25 else "bm25"
 
     use_hybrid = hybrid_retrieval_enabled and content_store is not None
@@ -336,9 +362,11 @@ def select_relevant_chunks(
         )
     ran["embed_model"] = embed_key
     if parents:
+        piece_rankings["vector"] = vector_ranking
         vector_ranking = list(dict.fromkeys(parents[chunk_id].chunk_id for chunk_id in vector_ranking))
     rrf: dict[str, float] = {}
     fused = _rrf_fuse([bm25_ranking, vector_ranking], scores_out=rrf)
+    rankings["vector"], rankings["fused"] = vector_ranking, fused
     for rank, chunk_id in enumerate(vector_ranking, start=1):
         scores.setdefault(chunk_id, {})["vector_rank"] = rank
     for chunk_id, score in rrf.items():
