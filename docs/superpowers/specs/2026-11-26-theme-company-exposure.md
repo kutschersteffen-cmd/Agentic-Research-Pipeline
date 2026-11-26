@@ -1,6 +1,6 @@
 # Company-level theme exposure: revenue share, momentum, tier and value-chain role
 
-Status: Draft, for owner approval
+Status: approved by the owner 2026-11-26
 Slug: `theme-company-exposure`
 Risk: `risk:normal` (one read-only API endpoint, three settings, one optional field on two models stored as JSON; no
 migration, no auth, money, UI or `risk:high` path)
