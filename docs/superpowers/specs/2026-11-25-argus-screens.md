@@ -1,6 +1,6 @@
 # Argus screens: tab row, Overview, Company ledger, step chats, Review a value
 
-Status: Draft, for owner approval
+Status: Approved by the owner on 2026-11-26 (spec thread, Approve on head 4fd69d6)
 Slug: `argus-screens`
 Risk: `risk:normal` for every slice (5 slices = Argus plan PRs 5 to 9)
 Plan: https://claude.ai/artifact/HEt7XAniY3yB5Gnj5JyMRM (approved 2026-11-25), sections "Argus additions",
