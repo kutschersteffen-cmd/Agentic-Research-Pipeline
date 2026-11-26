@@ -67,6 +67,14 @@ import type {
   RefineThread,
   RefineTurn,
   RefineTurnOut,
+  DeskChat,
+  DeskChatCreated,
+  DeskChatSummary,
+  DeskCompanies,
+  DeskScopeItem,
+  DeskStage,
+  DeskTurn,
+  DeskTurnStarted,
   SignalComparison,
   SignalExperimentDetail,
   SignalExperimentSummary,
@@ -351,6 +359,37 @@ export const api = {
   approveRfp: (id: number, qid: number, confirmedFlags: string[]) =>
     request<RfpProject>(rfpQuestion(id, qid, "/approve"), jsonBody("POST", { confirmed_flags: confirmedFlags })),
   // Refine threads on the Agent screen (spec refine-chat-design): `kind` is rfp (doc id = project id) or deck (report id).
+  // Research Desk (spec research-desk-wave1).
+  listDeskChats: () => request<DeskChatSummary[]>("/api/desk/chats"),
+  getDeskChat: (id: string) => request<DeskChat>(`/api/desk/chats/${encodeURIComponent(id)}`),
+  createDeskChat: () => request<DeskChatCreated>("/api/desk/chats", { method: "POST", body: "{}" }),
+  putDeskScope: (id: number, items: Pick<DeskScopeItem, "kind" | "ref">[]) =>
+    request<{ scope: DeskScopeItem[] }>(`/api/desk/chats/${id}/scope`, { method: "PUT", body: JSON.stringify({ items }) }),
+  listDeskCompanies: (q: string) => request<DeskCompanies>(`/api/desk/companies?q=${encodeURIComponent(q)}`),
+  postDeskTurn: (chatId: number, question: string, mode: "quick" | "thorough") =>
+    request<DeskTurnStarted>(`/api/desk/chats/${chatId}/turns`, { method: "POST", body: JSON.stringify({ question, mode }) }),
+  getDeskTurn: (id: number) => request<DeskTurn>(`/api/desk/turns/${id}`),
+  /** Reads a turn's event stream (fetch, so the bearer token goes along): calls `onStage` per stage record and
+   * resolves with the `end` status, or null when the stream closes without one. */
+  deskTurnEvents: async (id: number, onStage: (stage: DeskStage) => void, signal: AbortSignal): Promise<string | null> => {
+    const res = await authFetch(`${API_BASE}/api/desk/turns/${id}/events`, { signal });
+    const reader = res.body!.pipeThrough(new TextDecoderStream()).getReader();
+    let buf = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) return null;
+      buf += value;
+      let cut;
+      while ((cut = buf.indexOf("\n\n")) >= 0) {
+        const block = buf.slice(0, cut);
+        buf = buf.slice(cut + 2);
+        const event = /^event: (.*)$/m.exec(block)?.[1];
+        const data = JSON.parse(/^data: (.*)$/m.exec(block)?.[1] ?? "null");
+        if (event === "stage") onStage(data);
+        if (event === "end") return data.status;
+      }
+    }
+  },
   listRefineThreads: () => request<RefineThread[]>("/api/refine/threads"),
   listRefineDocuments: () => request<RefineDocument[]>("/api/refine/documents"),
   listRefineTurns: (kind: string, docId: string) => request<RefineTurn[]>(`/api/refine/${kind}/${encodeURIComponent(docId)}/turns`),

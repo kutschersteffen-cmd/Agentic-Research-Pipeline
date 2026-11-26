@@ -3,7 +3,7 @@
 // Add a line when you type a new request<...>() against an endpoint with a response model and the
 // frontend type is hand-written; a type declared as Served<S["..."]> in types.ts needs no line.
 import type { Me } from "../lib/reviewKeys";
-import type { BarrierValue, Cockpit, CompanyTransition, DataPointSchema, EmergingThemesScheduleConfig, FundOverlap, IndexFieldInventory, IndexStartingUniverse, IndexStartingUniverseDetail, MechanismEnvelope, OverlapMatrix, QAAnswer, ReplicationDatasetUpload, RuleGraph, S, Served, SignalExperimentDetail, SignalExperimentSummary } from "../types";
+import type { BarrierValue, Cockpit, CompanyTransition, DataPointSchema, DeskAnswer, DeskSource, DeskTurn, EmergingThemesScheduleConfig, FundOverlap, IndexFieldInventory, IndexStartingUniverse, IndexStartingUniverseDetail, MechanismEnvelope, OverlapMatrix, QAAnswer, ReplicationDatasetUpload, RuleGraph, S, Served, SignalExperimentDetail, SignalExperimentSummary } from "../types";
 
 type Satisfies<Backend extends Frontend, Frontend> = [Backend, Frontend];
 // The backend types these fields loosely (plain dicts, a list[str]); the frontend's narrower
@@ -12,6 +12,7 @@ type MechanismEnvelopeServed = Served<S["MechanismEnvelope"]> & { config: { rule
 type StartingUniverseDetailServed = Served<S["StartingUniverseDetail"]> & { fields: IndexFieldInventory };
 type QAAnswerServed = Served<S["QAAnswer"]> & { spec: { date_range: [string, string] | null } | null };
 type TransitionBarrierServed = Omit<Served<S["BarrierOut"]>, "values"> & { values: BarrierValue[] };
+type DeskTurnServed = Omit<Served<S["DeskTurnOut"]>, "sources" | "answer"> & { sources: DeskSource[]; answer: DeskAnswer | null };
 type TransitionServed = Omit<Served<S["TransitionOut"]>, "actions"> & {
   actions: (Omit<Served<S["ActionOut"]>, "barriers"> & { barriers: TransitionBarrierServed[] })[];
 };
@@ -19,6 +20,7 @@ type TransitionServed = Omit<Served<S["TransitionOut"]>, "actions"> & {
 export type ApiContract = [
   Satisfies<Served<S["CockpitResponse"]>, Cockpit>,
   Satisfies<Served<S["DataPointSchema"]>, DataPointSchema>,
+  Satisfies<DeskTurnServed, DeskTurn>,
   Satisfies<Served<S["EmergingThemesScheduleConfig"]>, EmergingThemesScheduleConfig>,
   Satisfies<Served<S["ExperimentDetail"]>, SignalExperimentDetail>,
   Satisfies<Served<S["ExperimentSummary"]>, SignalExperimentSummary>,
