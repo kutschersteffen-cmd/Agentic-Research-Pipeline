@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../api/client";
 import { errorDetail } from "../../lib/barrier";
 import { OrbChat } from "../../components/argus/OrbChat";
@@ -24,19 +24,26 @@ export function DeskChat({ chatId }: { chatId: string }) {
   const [cited, setCited] = useState<number | null>(null);
 
   const load = useCallback(async () => {
+    let c: Chat;
     try {
-      const c = await api.getDeskChat(chatId);
-      setChat(c);
-      setScope(c.scope);
-      const last = c.turns.at(-1);
-      const t = last ? await api.getDeskTurn(last.id) : null;
-      setTurn(t);
-      setStages(t?.stages ?? []);
-      setView("answer");
-      setCited(null);
+      c = await api.getDeskChat(chatId);
     } catch (err) {
       if ((err as Error).message.startsWith("404")) setNotFound(true);
       else setError(errorDetail(err as Error));
+      return;
+    }
+    setChat(c);
+    setScope(c.scope);
+    setView("answer");
+    setCited(null);
+    const last = c.turns.at(-1);
+    try { // a turn that cannot be read leaves the chat and its earlier questions on screen
+      const t = last ? await api.getDeskTurn(last.id) : null;
+      setTurn(t);
+      setStages(t?.stages ?? []);
+    } catch (err) {
+      setTurn(null);
+      setError(errorDetail(err as Error));
     }
   }, [chatId]);
 
@@ -58,7 +65,9 @@ export function DeskChat({ chatId }: { chatId: string }) {
     return () => stop.abort();
   }, [runningId]);
 
+  const opener = useRef<HTMLButtonElement | null>(null); // the chip that opened the panel gets focus back
   const closeCitation = useCallback(() => setCited(null), []);
+  useEffect(() => { if (cited === null) opener.current?.focus(); }, [cited]);
 
   if (notFound) return <div className="page desk-page"><p role="alert">Chat not found.</p></div>;
   if (!chat) return <div className="page desk-page">{error ? <p className="error-text" role="alert">{error}</p> : <p className="muted" role="status">Loading…</p>}</div>;
@@ -92,7 +101,7 @@ export function DeskChat({ chatId }: { chatId: string }) {
         <div className="desk-main">
           <OrbChat
             context="Research Desk"
-            phase={running ? "WORKING" : turn ? "DONE" : "READY"}
+            phase={running ? "WORKING" : turn?.status === "failed" ? "FAILED" : turn ? "DONE" : "READY"}
             placeholder="Ask a follow-up or a new question"
             ready={!running}
             onAction={ask}
@@ -124,7 +133,7 @@ export function DeskChat({ chatId }: { chatId: string }) {
                   {s.status === "to_check" && <span className="desk-mark" data-kind="to_check"> to check</span>}
                   {s.citations.map((c) => {
                     const at = citations.indexOf(c);
-                    return <button key={at} type="button" className="desk-cite" aria-pressed={cited === at} onClick={() => setCited(at)}>{c.source}</button>;
+                    return <button key={at} type="button" className="desk-cite" aria-pressed={cited === at} onClick={(e) => { opener.current = e.currentTarget; setCited(at); }}>{c.source}</button>;
                   })}
                 </p>
               ))}
@@ -140,7 +149,7 @@ export function DeskChat({ chatId }: { chatId: string }) {
 
           {answer && view === "how" && turn && (
             <article className="desk-how">
-              <p><a href={href} onClick={(e) => { e.preventDefault(); setView("answer"); }}>← Back to the answer</a></p>
+              <p><span aria-hidden="true">← </span><a href={href} onClick={(e) => { e.preventDefault(); setView("answer"); }}>Back to the answer</a></p>
               <h2>How this answer was found</h2>
               <p className="muted">{turn.question}</p>
               <h3>Where the time went</h3>
@@ -157,9 +166,9 @@ export function DeskChat({ chatId }: { chatId: string }) {
                     {used.map((s) => (
                       <tr key={s.n}>
                         <td>{s.n}</td>
-                        <td>{s.text.slice(0, 200)}<div className="muted">{s.company_name} · {s.filename}</div></td>
-                        <td>{s.scores.bm25?.toFixed(2) ?? "–"}</td>
-                        <td>{s.scores.vector_rank ?? "–"}</td>
+                        <td>{(s.text ?? "").slice(0, 200)}<div className="muted">{s.company_name} · {s.filename}</div></td>
+                        <td>{s.scores?.bm25?.toFixed(2) ?? "–"}</td>
+                        <td>{s.scores?.vector_rank ?? "–"}</td>
                         <td>{ordinal(s.n)}</td>
                       </tr>
                     ))}

@@ -166,6 +166,7 @@ def test_answer_citations_and_how_found(page):  # AC-40, AC-42, AC-43, AC-44
     assert page.get_by_role("dialog", name="Source 2").is_visible()
     page.keyboard.press("Escape")
     assert page.get_by_role("dialog").count() == 0
+    assert page.evaluate("document.activeElement.textContent") == "1"  # focus back on the chip that opened it
     page.get_by_role("button", name="3", exact=True).click()
     assert page.get_by_role("dialog").get_by_text("not found in the source").is_visible()
     page.keyboard.press("Escape")
@@ -175,7 +176,7 @@ def test_answer_citations_and_how_found(page):  # AC-40, AC-42, AC-43, AC-44
     assert page.get_by_role("heading", name="The 3 passages the answer used").is_visible()
     ranks = page.locator("table tbody tr td:last-child").all_inner_texts()
     assert ranks == ["1st", "2nd", "3rd"]
-    page.get_by_role("link", name="← Back to the answer").click()
+    page.get_by_role("link", name="Back to the answer", exact=True).click()
     assert page.get_by_role("heading", name=SENTENCES[0]["text"]).is_visible()
 
 
