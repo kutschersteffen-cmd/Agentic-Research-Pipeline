@@ -40,6 +40,7 @@ from arp.api.routers import (
     climate,
     companies,
     decision,
+    desk,
     discovery,
     documents,
     dossier_position,
@@ -94,6 +95,7 @@ from arp.api.routers import (
 from arp.db.session import require_cutover, require_postgres
 from arp.errors import ClientInputError, NotConfigured
 from arp.refine.turns import reap_stale_turns
+from arp.research_desk.turn import reap_stale_desk_turns
 from arp.stewardship.universe import wait_for_fill
 from arp.transition_alignment.benchmarks import check_benchmarks
 from arp.transition_barrier.dataset import check_rule_book
@@ -130,6 +132,7 @@ async def lifespan(app: FastAPI):
     require_cutover(settings)  # nor on an un-migrated or un-imported database
     # shortcut: fails every running turn at startup, safe only with one API worker; reap by age or worker id before running several
     reap_stale_turns()  # a turn left `running` by the last process can never finish: fail it, unlocking its document
+    reap_stale_desk_turns()  # the same for Research Desk turns
     settings.ensure_dirs()
     if settings.standins_dir is not None:
         logger.warning("Test stand-ins are ON: web search, fetch and model answers come from %s", settings.standins_dir)
@@ -225,6 +228,7 @@ app.include_router(transition_barrier.router, dependencies=[Depends(authorize)])
 app.include_router(transition_alignment.router, dependencies=[Depends(authorize)])
 app.include_router(rfp.router, dependencies=[Depends(authorize)])
 app.include_router(refine.router, dependencies=[Depends(current_user)])  # own role check: a viewer's 403 names the page
+app.include_router(desk.router)  # every endpoint requires an analyst
 app.include_router(portfolio.router, dependencies=[Depends(authorize)])
 app.include_router(climate.router, dependencies=[Depends(authorize)])
 app.include_router(decision.router, dependencies=[Depends(authorize)])
