@@ -81,8 +81,8 @@ export function DeskChat({ chatId }: { chatId: string }) {
   const ask = async (question: string) => {
     try {
       const same = scope.length === chat.scope.length && scope.every((s, i) => s.kind === chat.scope[i].kind && s.ref === chat.scope[i].ref);
-      if (!same) await api.putDeskScope(chat.id, scope.map(({ kind, ref }) => ({ kind, ref })));
-      await api.postDeskTurn(chat.id, question, mode);
+      if (!same) await api.putDeskScope(Number(chatId), scope.map(({ kind, ref }) => ({ kind, ref })));
+      await api.postDeskTurn(Number(chatId), question, mode);
       setError(null);
       await load();
       return true;
@@ -92,7 +92,7 @@ export function DeskChat({ chatId }: { chatId: string }) {
     }
   };
 
-  const href = `#/argus/desk/${chat.id}`;
+  const href = `#/argus/desk/${chatId}`;
 
   return (
     <div className="page desk-page">
