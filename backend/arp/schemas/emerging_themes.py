@@ -148,6 +148,7 @@ class TopicCluster(BaseModel):
     company_ids: list[str] = Field(default_factory=list, description="Distinct companies resolved from this cluster's member mentions.")
     mention_count: int = 0
     source_types: list[MentionSourceType] = Field(default_factory=list)
+    source_counts: dict[str, int] = Field(default_factory=dict, description="Mentions per source category (news, filings, regulators, research, jobs); {} for clusters saved before it existed.")
     centroid: list[float] = Field(default_factory=list, description="Mean embedding vector of member tags, for lineage/centroid-similarity linking.")
     stability_score: float = Field(default=0.0, ge=0.0, le=1.0, description="Fraction of reseeded clustering reruns in which this cluster's membership held together -- the pre-LLM stability gate (clustering.py), distinct from novelty below.")
 
@@ -439,6 +440,43 @@ class EmergingThemeCandidate(BaseModel):
     cluster_id: str
     run_id: str
     created_at: str = Field(default_factory=now_iso)
+
+
+class RadarCandidateRef(BaseModel):
+    run_id: str
+    theme_id: str
+
+
+class RadarHistoryEntry(BaseModel):
+    period: str
+    mention_count: int
+    share: float
+    burst: float
+
+
+class RadarTheme(BaseModel):
+    """One theme on the Theme Radar (spec theme-radar-screen); built by emerging_themes/radar.py::build_radar."""
+
+    radar_id: str
+    label: str
+    flag: Literal["accelerating", "rising", "new", "steady", "cooling"]
+    burst: float
+    share: float
+    baseline_share: float
+    first_period: str
+    last_period: str
+    status: Literal["none", "candidate", "under_review", "promoted", "rejected", "disconfirmed"]
+    candidate: RadarCandidateRef | None
+    source_mix: dict[str, int]
+    company_count: int
+    labels: list[str]
+    history: list[RadarHistoryEntry]
+
+
+class RadarResponse(BaseModel):
+    periods: list[str]
+    themes: list[RadarTheme]
+    companies: list[dict] = Field(default_factory=list)
 
 
 class EmergingThemesScheduleConfig(BaseModel):

@@ -2266,6 +2266,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/emerging-themes/radar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Radar
+         * @description Theme Radar: every theme of the last six scans with its flag, history, status and source mix.
+         */
+        get: operations["radar_api_emerging_themes_radar_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/emerging-themes/runs": {
         parameters: {
             query?: never;
@@ -17343,6 +17363,76 @@ export interface components {
             /** Sector */
             sector: string;
         };
+        /** RadarCandidateRef */
+        RadarCandidateRef: {
+            /** Run Id */
+            run_id: string;
+            /** Theme Id */
+            theme_id: string;
+        };
+        /** RadarHistoryEntry */
+        RadarHistoryEntry: {
+            /** Burst */
+            burst: number;
+            /** Mention Count */
+            mention_count: number;
+            /** Period */
+            period: string;
+            /** Share */
+            share: number;
+        };
+        /** RadarResponse */
+        RadarResponse: {
+            /** Companies */
+            companies?: {
+                [key: string]: unknown;
+            }[];
+            /** Periods */
+            periods: string[];
+            /** Themes */
+            themes: components["schemas"]["RadarTheme"][];
+        };
+        /**
+         * RadarTheme
+         * @description One theme on the Theme Radar (spec theme-radar-screen); built by emerging_themes/radar.py::build_radar.
+         */
+        RadarTheme: {
+            /** Baseline Share */
+            baseline_share: number;
+            /** Burst */
+            burst: number;
+            candidate: components["schemas"]["RadarCandidateRef"] | null;
+            /** Company Count */
+            company_count: number;
+            /** First Period */
+            first_period: string;
+            /**
+             * Flag
+             * @enum {string}
+             */
+            flag: "accelerating" | "rising" | "new" | "steady" | "cooling";
+            /** History */
+            history: components["schemas"]["RadarHistoryEntry"][];
+            /** Label */
+            label: string;
+            /** Labels */
+            labels: string[];
+            /** Last Period */
+            last_period: string;
+            /** Radar Id */
+            radar_id: string;
+            /** Share */
+            share: number;
+            /** Source Mix */
+            source_mix: {
+                [key: string]: number;
+            };
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "none" | "candidate" | "under_review" | "promoted" | "rejected" | "disconfirmed";
+        };
         /** RankMove */
         RankMove: {
             /** Company */
@@ -26179,6 +26269,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    radar_api_emerging_themes_radar_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RadarResponse"];
                 };
             };
         };

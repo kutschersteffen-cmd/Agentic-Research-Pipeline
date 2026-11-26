@@ -24,11 +24,12 @@ from arp.emerging_themes.pipeline import (
     promote_candidate,
     reject_candidate,
 )
+from arp.emerging_themes.radar import build_radar
 from arp.emerging_themes.scheduler import EmergingThemesScheduler, default_sources
 from arp.ingestion.xbrl import XbrlFactSource
 from arp.llm.base import LLMClient
 from arp.schemas.common import CompanyRef
-from arp.schemas.emerging_themes import EmergingThemesScheduleConfig
+from arp.schemas.emerging_themes import EmergingThemesScheduleConfig, RadarResponse
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.storage.topic_store import TopicStateStore
@@ -69,6 +70,12 @@ async def start_emerging_themes_run(
 
     keep_task(_background())
     return {"run_id": run_id, "company_count": len(companies)}
+
+
+@router.get("/radar", response_model=RadarResponse)
+def radar(run_store: RunStore = Depends(get_run_store), topic_store: TopicStateStore = Depends(get_topic_store)) -> dict:
+    """Theme Radar: every theme of the last six scans with its flag, history, status and source mix."""
+    return build_radar(topic_store, run_store)
 
 
 @router.get("/runs/{run_id}/candidates")
