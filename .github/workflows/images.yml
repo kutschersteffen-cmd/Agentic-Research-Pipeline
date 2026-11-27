@@ -61,7 +61,7 @@ jobs:
           - { key: compute, image: arp-compute, file: backend/Dockerfile.compute, context: ., variant: cpu, platform: linux/arm64, arch: arm64, runner: ubuntu-24.04-arm }
           - { key: compute-cuda, image: arp-compute, file: backend/Dockerfile.compute, context: ., variant: cuda, platform: linux/amd64, arch: amd64, runner: ubuntu-latest }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # The compute images (torch, docling and baked-in models; CUDA libraries for -cuda) outgrow the
       # runner's free disk otherwise.
@@ -191,7 +191,7 @@ jobs:
           - { name: arp-compute, platform: linux/arm64, runner: ubuntu-24.04-arm }
           - { name: arp-compute-cuda, platform: linux/amd64, runner: ubuntu-latest }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Free disk space
         if: startsWith(matrix.name, 'arp-compute')

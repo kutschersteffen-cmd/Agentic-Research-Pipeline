@@ -61,7 +61,7 @@ jobs:
       # - no HOLDOUT_TOKEN.
       # Otherwise it picks the test jobs (`parts`) and the holdout commit every job checks out.
       # The Rows: line is parsed by a self-tested script (holdout_rows.py), in a step without the HOLDOUT_TOKEN.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: github.event_name == 'pull_request'
         with:
           sparse-checkout: .github/scripts
@@ -206,7 +206,7 @@ jobs:
           if [ "$PART" = 1/6 ]; then echo "drill AC-1: fail" | tee "$RUNNER_TEMP/results/out.txt"; exit 1; fi
           echo "Drill: no tests in this part."
 
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: env.DRILL != 'true'
 
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
@@ -245,7 +245,7 @@ jobs:
           python -m playwright install --with-deps chromium
           bash backend/scripts/e2e_stack.sh up
 
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: env.DRILL != 'true'
         with:
           repository: kutschersteffen-cmd/holdout
@@ -333,7 +333,7 @@ jobs:
           if [ "$FULL" = true ]; then echo "full=true" >>"$GITHUB_OUTPUT"; fi
           if [ "$FULL" = true ] && [ "$DRILL" != true ]; then echo "complete=true" >>"$GITHUB_OUTPUT"; fi
 
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: steps.jobs.outputs.full == 'true'
         with:
           fetch-depth: ${{ env.ON_MAIN == 'true' && '0' || '1' }}
@@ -352,7 +352,7 @@ jobs:
           cache: "pip"
           cache-dependency-path: backend/pyproject.toml
 
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: ${{ !cancelled() && steps.jobs.outputs.complete == 'true' }}
         with:
           repository: kutschersteffen-cmd/holdout
